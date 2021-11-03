@@ -13,18 +13,31 @@ namespace TDV.Docx
         private ArchFile file;
 
         private XmlDocument xmlDoc;
+        
         internal FootNotes(DocxDocument docx) : base("w:footnotes")
         {
             docxDocument = docx;
-            file = docx.sourceFolder.FindFile("footnotes.xml"); ;
-            xmlDoc = new XmlDocument();
-            xmlDoc.LoadXml(file.GetSourceString());
-            nsmgr = new XmlNamespaceManager(xmlDoc.NameTable);
-            nsmgr.AddNamespace("w", xmlDoc.DocumentElement.NamespaceURI);
-            xmlEl = (XmlElement)xmlDoc.SelectSingleNode("/w:footnotes", nsmgr);
+            try
+            {
+
+                file = docx.sourceFolder.FindFile("footnotes.xml");
+                xmlDoc = new XmlDocument();
+                xmlDoc.LoadXml(file.GetSourceString());
+                nsmgr = new XmlNamespaceManager(xmlDoc.NameTable);
+                nsmgr.AddNamespace("w", xmlDoc.DocumentElement.NamespaceURI);
+                xmlEl = (XmlElement)xmlDoc.SelectSingleNode("/w:footnotes", nsmgr);
+            }
+            catch (FileNotFoundException e)
+            {
+                IsExist = false;
+            }
+            
         }
+
         public void Apply()
         {
+            if (!IsExist)
+                throw new FileNotFoundException("FootNotes does not exist :(");
             using (StringWriter stringWriter = new StringWriter())
             using (XmlWriter xw = XmlWriter.Create(stringWriter))
             {

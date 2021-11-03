@@ -9,15 +9,16 @@ using System.Drawing;
 
 namespace TDV.Docx
 {
-
     public class BaseNode : Node
     {
         protected BaseNode(string qualifiedName = ""):base(qualifiedName)
         {
+            IsExist = true;
         }
+
+        public bool IsExist;
         public DocxDocument docxDocument;
     }
-
 
     public class Document : BaseNode
     {
@@ -48,6 +49,32 @@ namespace TDV.Docx
                 Console.WriteLine(e.Message);
             }
         }
+
+        /// <summary>
+        /// Принять все правки
+        /// </summary>
+        public void ApplyAllFixes()
+        {
+            foreach(Node n in body.childNodes)
+            {
+                if(n is Paragraph)
+                {
+                    Paragraph p = (Paragraph)n;
+                    p.ApplyAllFixes();
+                }
+                else if(n is Table)
+                {
+                    Table t = (Table)n;
+                    t.ApplyAllFixes();
+                }
+                else if(n is SectProp)
+                {
+                    n.FindChild<SectPrChange>()?.Delete();
+                }
+            }
+        }
+
+
 
         public void Apply()
         {
@@ -247,7 +274,7 @@ namespace TDV.Docx
         }
         public void CompareColor(string color, string author = "TDV")
         {
-            if (Color != color)
+            if (!(string.IsNullOrEmpty(Color) && color=="black") && Color != color)
             {
                 CreateChangeNode("w:rPrChange", xmlEl, author);
                 Color = color;
@@ -623,7 +650,7 @@ namespace TDV.Docx
                     xmlEl.RemoveAttribute("start", xmlEl.NamespaceURI);
                 }
                 else
-                    xmlEl.SetAttribute("start", xmlEl.NamespaceURI, ((int)(value * 567)).ToString());
+                    xmlEl.SetAttribute("left", xmlEl.NamespaceURI, ((int)(value * 567)).ToString());
             }
         }
         public float right
@@ -756,6 +783,8 @@ namespace TDV.Docx
                 author);
             CompareSpacing(style.spacingBefore, style.spacingAfter, style.spacingLine, author);
             CompareBorder(style.borderLeft, style.borderRight, style.borderTop, style.borderBottom, style.borderBetween, style.borderBar, author);
+            CompareNumbering(style.numId,style.numLevel, author);
+            
         }
 
         public void SetStyle(PStyle style)
@@ -776,6 +805,14 @@ namespace TDV.Docx
             pBdr.Bar= style.borderBar;
         }
 
+        public bool HasSectPr
+        {
+            get
+            {
+                return childNodes.Where(x => x is SectProp).Any();
+            }
+        }
+
         public Ind ind
         {
             get
@@ -786,9 +823,39 @@ namespace TDV.Docx
                 return result;
             }
         }
+        /// <summary>
+        /// Окончание секции. Следующая секция всегда начинается с новой страницы
+        /// </summary>
+        public SectProp sectPr
+        {
+            get
+            {
+                SectProp result = childNodes.Where(x => x is SectProp).Select(x => (SectProp)x).FirstOrDefault();
+                if (result == null)
+                    result = new SectProp(this);
+                return result;
+            }
+        }
 
+        /// <summary>
+        /// Является элементом списка
+        /// </summary>
+        public bool HasNumPr
+        {
+            get
+            {
+                return childNodes.Where(x => x is NumPr).Any();
+            }
+        }
+        public NumPr NumPr
+        {
+            get
+            {
+                NumPr result = childNodes.Where(x => x is NumPr).Select(x => (NumPr)x).FirstOrDefault();
+                return result;
+            }
 
-
+        }
 
         /// <summary>
         /// Сравнение оступов. Значения в сантиметрах
@@ -821,6 +888,30 @@ namespace TDV.Docx
             pBdr.CompareBorder(BORDER.BAR, bar, author);
         }
 
+        /// <summary>
+        /// сравнение формата списка
+        /// </summary>
+        /// <param name="numId">Ссылка на целевой формат</param>
+        /// <param name="level">Уровень списка</param>
+        /// <param name="author">Автор правки</param>
+        public void CompareNumbering(int? numId,int level=0, string author = "TDV")
+        {
+            if (numId == null || !HasNumPr)
+                return;
+           
+            if(HasNumPr && numId!=NumPr.NumId.Value)
+            {
+                CreateChangeNode("w:pPrChange", (XmlElement)xmlEl, author);
+                NumPr.Level = level;
+                NumPr.NumId.Value = (int)numId;
+            } else if(!HasNumPr && numId!=null)
+            {
+                CreateChangeNode("w:pPrChange", (XmlElement)xmlEl, author);
+                NewNodeLast<NumPr>();
+                NumPr.Level = level;
+                NumPr.NumId.Value = (int)numId;
+            }
+        }
 
         /// <summary>
         /// отступы
@@ -1116,6 +1207,31 @@ namespace TDV.Docx
             return result;
         }
 
+        public void ApplyAllFixes()
+        {
+            //удалить Del ноды
+            List<Del> delList = FindChilds<Del>();
+            foreach (Del d in delList)
+                d.Delete();
+
+            //Применить все ins ноды
+            List<Ins> insList = FindChilds<Ins>();
+            foreach (Ins ins in insList)
+            {
+                foreach (Node insNode in ins.childNodes)
+                    insNode.MoveTo(this);
+                ins.Delete();
+            }
+            FindChild<PProp>()?.FindChild<PprChange>()?.Delete();
+            FindChild<PProp>()?.FindChild<RProp>()?.FindChild<RprChange>()?.Delete();
+            FindChild<PProp>()?.FindChild<RProp>()?.FindChild<Ins>()?.Delete();
+            FindChild<PProp>()?.FindChild<SectProp>()?.FindChild<SectPrChange>()?.Delete();
+            foreach (R r in rNodes)
+            { 
+                r.FindChild<RProp>()?.FindChild<RprChange>()?.Delete();
+            }
+        }
+
         /// <summary>
         /// Возвращает True если в параграфе нет текста и нет изображений
         /// </summary>
@@ -1172,6 +1288,7 @@ namespace TDV.Docx
                 }
                 return result;
             }
+
         }
 
         public int DrawingCount()
@@ -1205,6 +1322,14 @@ namespace TDV.Docx
                     xmlEl.RemoveChild(item.xmlEl);
                 rN.Text = value;
                 xmlEl.AppendChild(rN.xmlEl);
+            }
+        }
+
+        public int WordsCount
+        {
+            get
+            {
+                return Text.Split(' ').Where(x=>!string.IsNullOrEmpty(x)).Count();
             }
         }
         
@@ -1305,11 +1430,55 @@ namespace TDV.Docx
         }
     }
 
-    public class PageMargin : Node
+    public class PageMargin
     {
-        public PageMargin() : base("w:pgMar") { }
-        public PageMargin(Node parent) : base(parent, "w:pgMar") { }
-        public PageMargin(XmlElement xmlElement, Node parent) : base(xmlElement, parent, "w:pgMar") { }
+        public PageMargin(float top=-1, float right = -1, float bottom = -1, float left = -1, float footer = -1, float header = -1, float gutter = -1)
+        {
+            Top = top;
+            Right = right;
+            Left = left;
+            Bottom = bottom;
+            Footer = footer;
+            Header = header;
+            Gutter = gutter;
+}
+        /// <summary>
+        /// Верхняя граница. Значение в сантиметрах.
+        /// </summary>
+        public float Top;
+        /// <summary>
+        /// Правая граница. Значение в сантиметрах.
+        /// </summary>
+        public float Right;
+        /// <summary>
+        /// Нижняя граница. Значение в сантиметрах.
+        /// </summary>
+        public float Bottom;
+
+        /// <summary>
+        /// Левая граница. Значение в сантиметрах.
+        /// </summary>
+        public float Left;
+
+        /// <summary>
+        /// расстояние от верхнего края страницы до верхнего края верхнего колонтитула
+        /// </summary>
+        public float Header;
+        /// <summary>
+        /// расстояние от нижнего края страницы до нижнего края нижнего колонтитула
+        /// </summary>
+        public float Footer;
+        /// <summary>
+        /// Дополнительный отступ страницы (для переплета)
+        /// </summary>
+        public float Gutter;
+    }
+
+    public class PageMarginNode : Node
+    {
+        public PageMarginNode() : base("w:pgMar") { }
+        public PageMarginNode(Node parent) : base(parent, "w:pgMar") { }
+        public PageMarginNode(XmlElement xmlElement, Node parent) : base(xmlElement, parent, "w:pgMar") { }
 
         /// <summary>
         /// Верхняя граница. Значение в сантиметрах.
@@ -1446,13 +1615,13 @@ namespace TDV.Docx
         public SectProp(Node parent) : base(parent, "w:sectPr") { }
         public SectProp(XmlElement xmlElement, Node parent) : base(xmlElement, parent, "w:sectPr") { }
 
-        public PageMargin pgMar
+        public PageMarginNode pgMar
         {
             get
             {
-                PageMargin result = childNodes.Where(x => x is PageMargin).Select(x => (PageMargin)x).FirstOrDefault();
+                PageMarginNode result = childNodes.Where(x => x is PageMarginNode).Select(x => (PageMarginNode)x).FirstOrDefault();
                 if (result == null)
-                    result = new PageMargin(this);
+                    result = new PageMarginNode(this);
                 return result;
             }
         }
@@ -1468,7 +1637,7 @@ namespace TDV.Docx
             }
         }
 
-        public void CompareFooter(FOOTNOTE_NUM_FMT fmt, string author = "TDV")
+        public void CompareFooter(NUM_FMT fmt, string author = "TDV")
         {
             if (footnotePr.numFmt.Value != fmt)
             {
@@ -1477,6 +1646,22 @@ namespace TDV.Docx
             }
         }
 
+        public void ComparePageMargin(PageMargin pageMargin, string author = "TDV")
+        {
+            ComparePageMargin(pageMargin.Top, pageMargin.Bottom, pageMargin.Left, pageMargin.Right, pageMargin.Header, pageMargin.Footer, pageMargin.Gutter, author);
+        }
+
+        /// <summary>
+        /// Значения в Санмиметрах
+        /// </summary>
+        /// <param name="top"></param>
+        /// <param name="bottom"></param>
+        /// <param name="left"></param>
+        /// <param name="right"></param>
+        /// <param name="header"></param>
+        /// <param name="footer"></param>
+        /// <param name="gutter"></param>
+        /// <param name="author"></param>
         public void ComparePageMargin(float top = -1, float bottom = -1, float left = -1, float right = -1, float header = -1, float footer = -1, float gutter = -1, string author = "TDV")
         {
             if (pgMar.top != top || pgMar.bottom != bottom || pgMar.left != left || pgMar.right != right || pgMar.header != header || pgMar.footer != footer || pgMar.gutter != gutter)
@@ -1926,6 +2111,43 @@ namespace TDV.Docx
         public Inline(XmlElement xmlElement, Node parent) : base(xmlElement, parent, "wp:inline") { }
     }
 
+    public class SectPrChange : Node
+    {
+        public SectPrChange() : base("wp:sectPrChange") { }
+        public SectPrChange(XmlElement xmlElement, Node parent) : base(xmlElement, parent, "wp:sectPrChange") { }
+    }
+
+    public class RprChange : Node
+    {
+        public RprChange() : base("wp:rPrChange") { }
+        public RprChange(XmlElement xmlElement, Node parent) : base(xmlElement, parent, "wp:rPrChange") { }
+    }
+    public class PprChange : Node
+    {
+        public PprChange() : base("wp:pPrChange") { }
+        public PprChange(XmlElement xmlElement, Node parent) : base(xmlElement, parent, "wp:pPrChange") { }
+    }
+
+    public class TblPrChange : Node
+    {
+        public TblPrChange() : base("wp:tblPrChange") { }
+        public TblPrChange(XmlElement xmlElement, Node parent) : base(xmlElement, parent, "wp:tblPrChange") { }
+    }
+    public class TcPrChange : Node
+    {
+        public TcPrChange() : base("wp:tcPrChange") { }
+        public TcPrChange(XmlElement xmlElement, Node parent) : base(xmlElement, parent, "wp:tcPrChange") { }
+    }
+    public class TblGridChange : Node
+    {
+        public TblGridChange() : base("wp:tblGridChange") { }
+        public TblGridChange(XmlElement xmlElement, Node parent) : base(xmlElement, parent, "wp:tblGridChange") { }
+    }
+    public class TrPrChange : Node
+    {
+        public TrPrChange() : base("wp:trPrChange") { }
+        public TrPrChange(XmlElement xmlElement, Node parent) : base(xmlElement, parent, "wp:trPrChange") { }
+    }
     public class Extent : Node
     {
         public Extent() : base("wp:extent") { }
@@ -2049,8 +2271,7 @@ namespace TDV.Docx
             set { xmlEl.SetAttribute("cy", value.ToString()); }
         }
     }
-
-
+    
     public class Graphic : Node
     {
         public Graphic() : base("a:graphic") { }
@@ -2096,8 +2317,6 @@ namespace TDV.Docx
         }
     }
 
-
-
     public class FootnotePr : Node
     {
         public FootnotePr() : base("w:footnotePr") { }
@@ -2114,8 +2333,7 @@ namespace TDV.Docx
         }
     }
 
-
-    public enum FOOTNOTE_NUM_FMT { UNKNOWN,
+    public enum NUM_FMT { UNKNOWN,
         /// <summary>
         /// 1, 2, 3
         /// </summary>
@@ -2135,7 +2353,9 @@ namespace TDV.Docx
         /// <summary>
         /// спецсимволы
         /// </summary>
-        CHICAGO
+        CHICAGO,
+
+        BULLET
 
     }
     /// <summary>
@@ -2146,28 +2366,31 @@ namespace TDV.Docx
         public NumFmt() : base("w:numFmt") { }
         public NumFmt(XmlElement xmlElement, Node parent) : base(xmlElement, parent, "w:numFmt") { }
 
-        public FOOTNOTE_NUM_FMT Value
+        public NUM_FMT Value
         {
             get
             {
-                FOOTNOTE_NUM_FMT result = FOOTNOTE_NUM_FMT.UNKNOWN;
+                NUM_FMT result = NUM_FMT.UNKNOWN;
 
                 switch (xmlEl.GetAttribute("w:val"))
                 {
                     case "":
-                        result=FOOTNOTE_NUM_FMT.DEFAULT;
+                        result=NUM_FMT.DEFAULT;
                         break;
                     case "upperLetter":
-                        result = FOOTNOTE_NUM_FMT.UPPER_LETTER;
+                        result = NUM_FMT.UPPER_LETTER;
                         break;
                     case "lowerRoman":
-                        result = FOOTNOTE_NUM_FMT.LOWER_ROMAN;
+                        result = NUM_FMT.LOWER_ROMAN;
                         break;
                     case "upperRoman":
-                        result = FOOTNOTE_NUM_FMT.UPPER_ROMAN;
+                        result = NUM_FMT.UPPER_ROMAN;
                         break;
                     case "chicago":
-                        result = FOOTNOTE_NUM_FMT.CHICAGO;
+                        result = NUM_FMT.CHICAGO;
+                        break;
+                    case "bullet":
+                        result = NUM_FMT.BULLET;
                         break;
                     default:
                         break;
@@ -2179,23 +2402,190 @@ namespace TDV.Docx
                 switch (value)
                 {
                     default:
-                    case FOOTNOTE_NUM_FMT.DEFAULT:
+                    case NUM_FMT.DEFAULT:
                         xmlEl.RemoveAttribute("val", xmlEl.NamespaceURI);
                         break;
-                    case FOOTNOTE_NUM_FMT.CHICAGO:
+                    case NUM_FMT.CHICAGO:
                         xmlEl.SetAttribute("val", xmlEl.NamespaceURI, "chicago");
                         break;
-                    case FOOTNOTE_NUM_FMT.LOWER_ROMAN:
+                    case NUM_FMT.LOWER_ROMAN:
                         xmlEl.SetAttribute("val", xmlEl.NamespaceURI, "lowerRoman");
                         break;
-                    case FOOTNOTE_NUM_FMT.UPPER_ROMAN:
+                    case NUM_FMT.UPPER_ROMAN:
                         xmlEl.SetAttribute("val", xmlEl.NamespaceURI, "upperRoman");
                         break;
-                    case FOOTNOTE_NUM_FMT.UPPER_LETTER:
+                    case NUM_FMT.UPPER_LETTER:
                         xmlEl.SetAttribute("val", xmlEl.NamespaceURI, "upperLetter");
+                        break;
+                    case NUM_FMT.BULLET:
+                        xmlEl.SetAttribute("val", xmlEl.NamespaceURI, "bullet");
                         break;
                 }
             }
+        }
+    }
+
+
+    /// <summary>
+    /// формат списка
+    /// </summary>
+    /*public enum NUM_FORMAT
+    {
+        UNKNOWN,
+        /// <summary>
+        /// Кружки
+        /// </summary>
+        CIRCLE=1,
+        /// <summary>
+        /// Треугольники
+        /// </summary>
+        TRIANGLE=2,
+        /// <summary>
+        /// О
+        /// </summary>
+        O=3,
+        /// <summary>
+        /// квадрат
+        /// </summary>
+        SQUARE=4,
+        /// <summary>
+        /// 4 Ромба
+        /// </summary>
+        FOUR_ROMBUS=5,
+        COLOR_ICON=6,
+        /// <summary>
+        /// черно-белая стрелка
+        /// </summary>
+        ARROW=7,
+        /// <summary>
+        /// галочка
+        /// </summary>
+        CHECK_MARK=8,
+        /// <summary>
+        /// 1. 2. 3.
+        /// </summary>
+        NUMBERS1 = 9,
+        /// <summary>
+        /// 1) 2) 3)
+        /// </summary>
+        NUMBERS2 = 10,
+        /// <summary>
+        /// I. II. III.
+        /// </summary>
+        NUMBERS3 = 11,
+        /// <summary>
+        /// A. B. C.
+        /// </summary>
+        SYMBOLS1 = 12,
+        /// <summary>
+        /// a) b) c)
+        /// </summary>
+        SYMBOLS2 = 13,
+        /// <summary>
+        /// a. b. c.
+        /// </summary>
+        SYMBOLS3 = 14,
+        /// <summary>
+        /// i. ii. iii.
+        /// </summary>
+        SYMBOLS4 =15
+
+    }*/
+
+    /// <summary>
+    /// Уровень списка
+    /// </summary>
+    public class Ilvl : Node
+    {
+        public Ilvl() : base("w:ilvl") { }
+        public Ilvl(Node parent) : base(parent, "w:ilvl") {
+            Value = 0;
+        }
+        public Ilvl(XmlElement xmlElement, Node parent) : base(xmlElement, parent, "w:ilvl") { }
+        public int Value
+        {
+            get
+            {
+                return Int32.Parse(xmlEl.GetAttribute("w:val"));
+            }
+            set
+            {
+                xmlEl.SetAttribute("val", xmlEl.NamespaceURI, value.ToString());
+            }
+        }
+    }
+
+    /// <summary>
+    /// тип списка
+    /// </summary>
+    public class NumId : Node
+    {
+        public NumId() : base("w:numId") { }
+        public NumId(Node parent) : base(parent, "w:numId")
+        {
+            Value = 0;
+        }
+        public NumId(XmlElement xmlElement, Node parent) : base(xmlElement, parent, "w:numId") { }
+        public int Value
+        {
+            get
+            {
+                return  Int32.Parse(xmlEl.GetAttribute("w:val"));
+            }
+            set
+            {
+                xmlEl.SetAttribute("val", xmlEl.NamespaceURI, value.ToString());
+            }
+        }
+    }
+
+    /// <summary>
+    /// Формат списка
+    /// </summary>
+    public class NumPr : Node
+    {
+        public NumPr() : base("w:numPr") { }
+        public NumPr(Node parent,int numId) : base(parent, "w:numPr")
+        {
+            Level = 0;
+            NumId.Value = numId;
+        }
+        public NumPr(XmlElement xmlElement, Node parent) : base(xmlElement, parent, "w:numPr") { }
+
+
+        public Ilvl Ilvl
+        {
+            get
+            {
+                Ilvl result = childNodes.Where(x => x is Ilvl).Select(x => (Ilvl)x).FirstOrDefault();
+                if (result == null)
+                    result = new Ilvl(this);
+                return result;
+            }
+        }
+        public NumId NumId
+        {
+            get
+            {
+                NumId result = childNodes.Where(x => x is NumId).Select(x => (NumId)x).FirstOrDefault();
+                if (result == null)
+                    result = new NumId(this);
+                return result;
+            }
+        }
+        /// <summary>
+        /// уровень списка. начинается с 0
+        /// </summary>
+        public int Level
+        {
+            get
+            {
+                return Ilvl.Value;
+            }
+            set
+            {
+                Ilvl.Value = value;
+            }       
         }
     }
 

@@ -24,7 +24,9 @@ namespace TDV.Docx
             float spacingLine,
             float indentingFirtsLine,
             float indentingHanging,
-            float indentingleft, float indentingRight)
+            float indentingleft, float indentingRight,
+            int? numId=null,
+            int numLevel=0)
         {
             this.horizontalAlign = horizontalAlign;
             this.borderLeft = borderLeft;
@@ -40,7 +42,14 @@ namespace TDV.Docx
             this.indentingHanging = indentingHanging;
             this.indentingleft = indentingleft;
             this.indentingRight = indentingRight;
+            this.numId = numId;
+            this.numLevel = numLevel;
         }
+        /// <summary>
+        /// ссылка на формат списка
+        /// </summary>
+        public int numLevel;
+        public int? numId;
         public HORIZONTAL_ALIGN horizontalAlign;
         public Border borderLeft;
         public Border borderRight;
@@ -152,6 +161,11 @@ namespace TDV.Docx
         protected Node(string qualifiedName="")
         {
             this.qualifiedName = qualifiedName;
+        }
+
+        public string GenerateGuid()
+        {
+            return Guid.NewGuid().ToString().Substring(0,8).ToUpper();
         }
 
         public XmlElement CopyXmlElement()
@@ -330,8 +344,11 @@ namespace TDV.Docx
                         case "w:ind":
                             result.Add(new Ind(item, this));
                             break;
+                        case "w:ins":
+                            result.Add(new Ins(item, this));
+                            break;
                         case "w:pgMar":
-                            result.Add(new PageMargin(item, this));
+                            result.Add(new PageMarginNode(item, this));
                             break;
                         case "w:spacing":
                             result.Add(new Spacing(item, this));
@@ -381,6 +398,67 @@ namespace TDV.Docx
                             break;
                         case "w:numFmt":
                             result.Add(new NumFmt(item, this));
+                            break;
+                        case "w:numPr":
+                            result.Add(new NumPr(item, this));
+                            break;
+                        case "w:ilvl":
+                            result.Add(new Ilvl(item, this));
+                            break;
+                        case "w:numId":
+                            result.Add(new NumId(item, this));
+                            break;
+                      
+                        case "w:abstractNum":
+                            result.Add(new AbstractNum(item, this));
+                            break;
+                        case "w:lvl":
+                            result.Add(new Lvl(item, this));
+                            break;
+                        case "w:start":
+                            result.Add(new Start(item, this));
+                            break;
+                        case "w:lvlText":
+                            result.Add(new LvlText(item, this));
+                            break;
+                        case "w:lvlJc":
+                            result.Add(new LvlJc(item, this));
+                            break;
+                        case "w:num":
+                            result.Add(new Num(item, this));
+                            break;
+                        case "w:abstractNumId":
+                            result.Add(new AbstractNumId(item, this));
+                            break;
+                        case "w:nsid":
+                            result.Add(new Nsid(item, this));
+                            break;
+                        case "w:multiLevelType":
+                            result.Add(new MultiLevelType(item, this));
+                            break;
+                        case "w:tmpl":
+                            result.Add(new Tmpl(item, this));
+                            break;
+                        case "w:rPrChange":
+                            result.Add(new RprChange(item, this));
+                            break;
+                        case "w:pPrChange":
+                            result.Add(new PprChange(item, this));
+                            break;
+                        case "w:tblPrChange":
+                            result.Add(new TblPrChange(item, this));
+                            break;
+                        case "w:tcPrChange":
+                            result.Add(new TcPrChange(item, this));
+                            break;
+                        case "w:tblGridChange":
+                            result.Add(new TblGridChange(item, this));
+                            break;
+                        case "w:trPrChange":
+                            result.Add(new TrPrChange(item, this));
+                            break;
+                        case "w:sectPrChange":
+                            result.Add(new SectPrChange(item, this));
                             break;
                         default:
                             result.Add(new Node(item, this, item.Name));
