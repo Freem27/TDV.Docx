@@ -98,7 +98,35 @@ namespace TDV.Docx
                     cell.tcProp.CreateChangeNode(author);
             }
         }
+        public void ApplyAllFixes()
+        {
+            
+            FindChild<TableProp>()?.FindChild<TblPrChange>()?.Delete();
+            FindChild<TableGrid>()?.FindChild<TblGridChange>()?.Delete();
 
+            foreach (Tr tr in Rows)
+            {
+                if (tr.FindChild<TrProp>()?.FindChild<Del>() != null)
+                {
+                    tr.Delete();
+                    continue;
+                }
+                tr.FindChild<TrProp>()?.FindChild<Ins>()?.Delete();
+                tr.FindChild<TrProp>()?.FindChild<TrPrChange>()?.Delete();
+
+                foreach (Tc tc in tr.Cells)
+                {
+                    tc.FindChild<TcProp>()?.FindChild<TcPrChange>()?.Delete();
+                    foreach(Node n in tc.childNodes)
+                    {
+                        if (n is Paragraph)
+                            ((Paragraph)n).ApplyAllFixes();
+                        else if (n is Table)
+                            ((Table)n).ApplyAllFixes();
+                    }
+                }
+            }
+        }
         public void CompateStyle(TableStyle style, string author = "TDV")
         {
             CompareBorders(style.borderLeft, style.borderRight, style.borderTop, style.borderBottom,

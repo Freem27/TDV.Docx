@@ -286,16 +286,17 @@ h.Apply();
 
 ```
 ### Формат сносок
-FOOTNOTE_NUM_FMT(enum):  
+NUM_FMT(enum):  
 <b>DEFAULT</b> -  1, 2, 3  
 <b>UPPER_LETTER</b> - A, B, C  
 <b>LOWER_ROMAN</b> -  i, ii, iii  
 <b>UPPER_ROMAN</b> - I, II, III  
 <b>CHICAGO</b> - спецсимволы  
+<b>BULLET</b> - Символ. используется в нумерации списков
 
 Изменить формат сноски:
 ```csharp
-doc.document.body.sectProp.footnotePr.numFmt.Value = FOOTNOTE_NUM_FMT.LOWER_ROMAN;
+doc.document.body.sectProp.footnotePr.numFmt.Value = NUM_FMT.LOWER_ROMAN;
 ```
 
 изменить в режиме правки:
@@ -303,4 +304,205 @@ doc.document.body.sectProp.footnotePr.numFmt.Value = FOOTNOTE_NUM_FMT.LOWER_ROMA
 doc.document.body.sectProp.CompareFooter(FOOTNOTE_NUM_FMT.DEFAULT);
 ```
 
+### Принять все правки
+Можно принять все правки вызывав метод ApplyAllFixes() класса Document
+```csharp
+using (MemoryStream ms = new MemoryStream(File.ReadAllBytes("1.docx")))
+{
+    DocxDocument doc = new DocxDocument(ms);
+    doc.document.ApplyAllFixes();
+    doc.Apply();
+}
+```
 
+
+### Списки
+
+список  
+![](images/listSquare.JPG)  
+в document.xml выглядит так:
+```xml
+<w:p w:rsidR="004F561A" w:rsidRDefault="00E02633" w:rsidP="00813B38">
+	<w:pPr>
+		<w:pStyle w:val="a3"/>
+		<w:numPr>
+			<w:ilvl w:val="0"/>
+			<w:numId w:val="4"/>
+		</w:numPr>
+	</w:pPr>
+	<w:r>
+		<w:t>Первый</w:t>
+	</w:r>
+</w:p>
+<w:p w:rsidR="00E02633" w:rsidRDefault="00E02633" w:rsidP="00813B38">
+	<w:pPr>
+		<w:pStyle w:val="a3"/>
+		<w:numPr>
+			<w:ilvl w:val="0"/>
+			<w:numId w:val="4"/>
+		</w:numPr>
+	</w:pPr>
+	<w:r>
+		<w:t>Второй</w:t>
+	</w:r>
+</w:p>
+<w:p w:rsidR="00813B38" w:rsidRDefault="00E02633" w:rsidP="00813B38">
+	<w:pPr>
+		<w:pStyle w:val="a3"/>
+		<w:numPr>
+			<w:ilvl w:val="0"/>
+			<w:numId w:val="4"/>
+		</w:numPr>
+	</w:pPr>
+	<w:r>
+		<w:t>Третий</w:t>
+	</w:r>
+</w:p>
+```
+
+в свойствах параграфа появляется w:numPr, содержащий в себе ноды:  
+ <b><w:ilvl w:val="0"/></b> -  уровень списка  
+ <b><w:numId w:val="4"/></b> - ссылку на список в файле word\numbering.xml 
+
+numbering.xml содержит в себе 
+Ноды <b>w:abstractNum</b> - описание стиля списка (маркер, размер шрифта и оступы для разных уровней и тп)
+```xml
+<w:abstractNum w:abstractNumId="0" w15:restartNumberingAfterBreak="0">
+	<w:nsid w:val="109A1B84"/>
+	<w:multiLevelType w:val="hybridMultilevel"/>
+	<w:tmpl w:val="B24C8F42"/>
+	<w:lvl w:ilvl="0" w:tplc="04190001">
+		<w:start w:val="1"/>
+		<w:numFmt w:val="bullet"/>
+		<w:lvlText w:val="*"/>
+		<w:lvlJc w:val="left"/>
+		<w:pPr>
+			<w:ind w:left="720" w:hanging="360"/>
+		</w:pPr>
+		<w:rPr>
+			<w:rFonts w:ascii="Symbol" w:hAnsi="Symbol" w:hint="default"/>
+		</w:rPr>
+	</w:lvl>
+	<w:lvl w:ilvl="1" w:tplc="04190003" w:tentative="1">
+		<w:start w:val="1"/>
+		<w:numFmt w:val="bullet"/>
+		<w:lvlText w:val="o"/>
+		<w:lvlJc w:val="left"/>
+		<w:pPr>
+			<w:ind w:left="1440" w:hanging="360"/>
+		</w:pPr>
+		<w:rPr>
+			<w:rFonts w:ascii="Courier New" w:hAnsi="Courier New" w:cs="Courier New" w:hint="default"/>
+		</w:rPr>
+	</w:lvl>
+	<w:lvl w:ilvl="2" w:tplc="04190005" w:tentative="1">
+		<!--...-->
+	</w:lvl>
+
+<!--... описание других уровней списка -->
+	
+</w:abstractNum>
+```
+для каждого уровня определяется  
+<b><w:start w:val="1"/></b> - первый элемент списка (для нумерованных)  
+<b><w:numFmt w:val="bullet"/></b> - формат маркера  
+<b><w:lvlText w:val="*"/></b> - маркер списка
+<b><w:lvlJc w:val="left"/></b> - выравнивание  
+<b><w:pPr> и <w:rPr></b> - определяют шрифт отсутп маркера списка  
+
+После перечисления всех стилей списков w:abstractNum начинается перечисление w:num - связей списков в document.xml и w:abstractNum в numbering.xml
+```xml
+<w:num w:numId="1">
+	<w:abstractNumId w:val="3"/>
+</w:num>
+<w:num w:numId="2">
+	<w:abstractNumId w:val="4"/>
+</w:num>
+<w:num w:numId="3">
+	<w:abstractNumId w:val="5"/>
+</w:num>
+<w:num w:numId="4">
+	<w:abstractNumId w:val="2"/>
+</w:num>
+<w:num w:numId="5">
+	<w:abstractNumId w:val="0"/>
+</w:num>
+<w:num w:numId="6">
+	<w:abstractNumId w:val="1"/>
+</w:num>
+```
+
+Для разных списков с одинм и тем же стимлем должны существовать разные w:num с разными w:numId  
+  
+в document.xml <w:numId w:val="4"/>, следовательно от ссылается на <w:abstractNumId w:val="2"/> (в примере другой abstactNum т.к. символ маркера "квадрат" на отображается в разметке markdown)
+  
+
+### Для работы с numering.xml реализован класс <b>Numbering </b>
+
+```csharp
+Numbering numbering = doc.numbering;
+
+//предоставляет досуп ко всем существующим AbstactNum:
+foreach(AbstractNum an in numbering.AbstartNums)
+{}
+
+//перебор существующих связей w:num
+foreach (Num n in numbering.Nums)
+{
+    Console.Write($"{n.NumId} {n.AbstartNumId}");
+    //метод для получения AbstractNum по id
+    AbstractNum an = numbering.GetAbstartNumByID(n.AbstartNumId);
+}
+//создание новго стиля списка 
+AbstractNum newAbstractNum = numbering.NewAbstractNum(
+				start : 1, 
+				fontName : "Arial", 
+				fontSize : 6, 
+				numFmt : NUM_FMT.BULLET, 
+				lvlText : "*", 
+				lvlJC : HORIZONTAL_ALIGN.LEFT, 
+				indentingFirst : 720 / 567f, 
+				indentingStep : 720 / 567f, 
+				hanging : 360 / 567f
+				);
+//IdAbstactNum будет сгенерирован автоматически:
+Console.WriteLine($"new id abstractNum = {newAbstractNum.AbstractNumId}")
+
+//создание новой связи:
+Num newNum = numbering.NewNum(newAbstractNum.AbstractNumId);
+Console.WriteLine($" new numId = {newNum.NumId}");
+```
+
+Изменить стиль списков в документе
+```csharp
+foreach (Node node in doc.document.body.childNodes)
+{
+    if(node is Paragraph)
+    {
+        Paragraph p = (Paragraph)node;
+        if(p.pPr.HasNumPr)
+        {
+            p.pPr.NumPr.NumId.Value = newNum.NumId;
+        }
+    }
+}
+doc.Apply();
+```
+
+Режим рецинзирования  
+```csharp
+foreach (Node node in doc.document.body.childNodes)
+{
+    if(node is Paragraph)
+    {
+        Paragraph p = (Paragraph)node;
+        if(p.pPr.HasNumPr)
+        {
+            p.pPr.CompareNumbering(newNum.NumId, 0);
+        }
+    }
+}
+doc.Apply();
+```
+Результат:  
+![](images/ListComapre.JPG)  

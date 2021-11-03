@@ -13,6 +13,7 @@ namespace TDV.Docx
         public WordRels wordRels;
         public Styles styles;
         public FootNotes footNotes;
+        public Numbering numbering;
         public DocxDocument(Stream stream)
         {
             sourceFolder = new ArchFolder(null);
@@ -33,6 +34,7 @@ namespace TDV.Docx
             wordRels = new WordRels(this);
             styles = new Styles(this);
             footNotes = new FootNotes(this);
+            numbering = new Numbering(this);
         }
         public static string Test()
         {
@@ -56,6 +58,16 @@ namespace TDV.Docx
             }
             result.Seek(0, SeekOrigin.Begin);
             return result;
+        }
+
+        public void Apply()
+        {
+            document.Apply();
+            if(footNotes.IsExist)
+                footNotes.Apply();
+            if(numbering.IsExist)
+                numbering.Apply();
+            
         }
 
         public byte[] ToBytes()

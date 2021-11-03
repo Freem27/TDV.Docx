@@ -48,6 +48,7 @@
     <Compile Include="Document.cs" />
     <Compile Include="DocxDocument.cs" />
     <Compile Include="FootNotes.cs" />
+    <Compile Include="Numbering.cs" />
     <Compile Include="Headers.cs" />
     <Compile Include="Node.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
