@@ -5,17 +5,52 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml;
+using System.Xml.XPath;
 using System.Drawing;
 
 namespace TDV.Docx
 {
     public class BaseNode : Node
     {
-        protected BaseNode(string qualifiedName = ""):base(qualifiedName)
+        internal XmlDocument xmlDoc;
+        internal ArchFile file;
+        protected BaseNode(DocxDocument docxDocument,string qualifiedName = ""):base(qualifiedName)
         {
+            this.docxDocument = docxDocument;
             IsExist = true;
+            GetDocxDocument().FilesForApply.Add(this);
         }
 
+        internal void FillNamespaces()
+        {
+            nsmgr = new XmlNamespaceManager(xmlDoc.NameTable);
+            IDictionary<string, string> localNamespaces = null;
+            XPathNavigator xNav = xmlDoc.CreateNavigator();
+            while (xNav.MoveToFollowing(XPathNodeType.Element))
+            {
+                localNamespaces = xNav.GetNamespacesInScope(XmlNamespaceScope.Local);
+                foreach (var localNamespace in localNamespaces)
+                {
+                    string prefix = localNamespace.Key;
+                    if (string.IsNullOrEmpty(prefix))
+                        prefix = "DEFAULT";
+                    nsmgr.AddNamespace(prefix, localNamespace.Value);
+                }
+            }
+        }
+
+        public void Apply()
+        {
+            if (!IsExist)
+                throw new Exception("numbering.xml does not exist :(");
+            using (StringWriter stringWriter = new StringWriter())
+            using (XmlWriter xw = XmlWriter.Create(stringWriter))
+            {
+                xmlDoc.WriteTo(xw);
+                xw.Flush();
+                file.content = Encoding.UTF8.GetBytes(stringWriter.GetStringBuilder().ToString());
+            }
+        }
         public bool IsExist;
         public DocxDocument docxDocument;
     }
@@ -26,20 +61,16 @@ namespace TDV.Docx
         {
             get { return (Body)childNodes.Where(x => x is Body).FirstOrDefault(); }
         }
-        private ArchFile file;
-        private XmlDocument xmlDoc;
-        public Document(DocxDocument doc) : base("w:documnent")
+        public Document(DocxDocument docx) : base(docx,"w:documnent")
         {
-            docxDocument = doc;
             qualifiedName = "w:document";
             try
             {
-                file = doc.sourceFolder.FindFile("document.xml");
+                file = docx.sourceFolder.FindFile("document.xml");
 
                 xmlDoc = new XmlDocument();
                 xmlDoc.LoadXml(file.GetSourceString());
-                nsmgr = new XmlNamespaceManager(xmlDoc.NameTable);
-                nsmgr.AddNamespace("w", xmlDoc.DocumentElement.NamespaceURI);
+                FillNamespaces();
                 xmlEl = (XmlElement)xmlDoc.SelectSingleNode("/w:document", nsmgr);
 
                 this.doc = xmlEl.OwnerDocument;
@@ -75,7 +106,7 @@ namespace TDV.Docx
         }
 
 
-
+        /*
         public void Apply()
         {
             RemoveEmptyNodes(xmlEl);
@@ -86,7 +117,7 @@ namespace TDV.Docx
                 xw.Flush();
                 file.content = Encoding.UTF8.GetBytes(stringWriter.GetStringBuilder().ToString());
             }
-        }
+        }*/
 
         /// <summary>
         /// удаляет ноды, в которых не заполенны атрибуты (согласно списку)
@@ -131,6 +162,7 @@ namespace TDV.Docx
                 return result;
             }
         }
+        
     }
 
     public class RProp : Node
@@ -315,6 +347,33 @@ namespace TDV.Docx
                 fontNode.SetAttribute("ascii", xmlEl.NamespaceURI, value);
                 fontNode.SetAttribute("hAnsi", xmlEl.NamespaceURI, value);
                 fontNode.SetAttribute("cs", xmlEl.NamespaceURI, value);
+            }
+
+        }
+
+        /// <summary>
+        /// без проверки правописания (не проверять орфографию и грамматику)
+        /// </summary>
+        public bool NoProof
+        {
+            get
+            {
+                bool result = childNodes.Where(x => x.xmlEl.Name == "noProof").Any();
+                return result;
+            }
+            set
+            {
+                if (value)
+                    if (!childNodes.Where(x => x.xmlEl.Name == "noProof").Any())
+                    {
+                        xmlEl.AppendChild(doc.CreateElement("w:noProof", doc.DocumentElement.NamespaceURI));
+                    }
+                    else
+                    {
+                        XmlElement forDel = childNodes.Where(x => x.xmlEl.Name == "noProof").FirstOrDefault()?.xmlEl;
+                        if (forDel != null)
+                            doc.RemoveChild(forDel);
+                    }
             }
         }
 
@@ -970,65 +1029,23 @@ namespace TDV.Docx
             }
         }
 
-        public new HORIZONTAL_ALIGN HorizontalAlign
+        public HORIZONTAL_ALIGN HorizontalAlign
         {
             get
             {
-                var alignNode = xmlEl.SelectSingleNode("w:jc", nsmgr);
-                if (alignNode != null )
-                {
-                    var attributes = alignNode.Attributes;
-                    switch (((XmlElement)alignNode).GetAttribute("w:val"))
-                    {
-                        case "left":
-                            return HORIZONTAL_ALIGN.LEFT;
-                        case "center":
-                            return HORIZONTAL_ALIGN.CENTER;
-                        case "rigth":
-                            return HORIZONTAL_ALIGN.RIGHT;
-                        case "both":
-                            return HORIZONTAL_ALIGN.BOTH;
-                        default:
-                            return HORIZONTAL_ALIGN.NONE;
-                            break;
-                    }
-                }
-                return HORIZONTAL_ALIGN.NONE;
+                Jc jc = FindChild<Jc>();
+                if (jc == null)
+                    return HORIZONTAL_ALIGN.NONE;
+                return jc.Value;
             }
             set
             {
-                XmlElement n = (XmlElement)xmlEl.SelectSingleNode("w:jc", nsmgr);
-                if (n != null && value == HORIZONTAL_ALIGN.NONE)
-                {
-                    xmlEl.RemoveChild(n);
-                }
-
-                if (value != HORIZONTAL_ALIGN.NONE)
-                {
-                    if (n == null)
-                    {
-                        n = doc.CreateElement("w:jc", xmlEl.NamespaceURI);
-                        xmlEl.AppendChild(n);
-                    }
-
-                    switch (value)
-                    {
-                        case HORIZONTAL_ALIGN.LEFT:
-                            n.SetAttribute("val", xmlEl.NamespaceURI, "left");
-                            break;
-                        case HORIZONTAL_ALIGN.CENTER:
-                            n.SetAttribute("val", xmlEl.NamespaceURI, "center");
-                            break;
-                        case HORIZONTAL_ALIGN.RIGHT:
-                            n.SetAttribute("val", xmlEl.NamespaceURI, "right");
-                            break;
-                        case HORIZONTAL_ALIGN.BOTH:
-                            n.SetAttribute("val", xmlEl.NamespaceURI, "both");
-                            break;
-                        default:
-                            break;
-                    }
-                }
+                Jc jc = FindChildOrCreate<Jc>();
+                if (value == HORIZONTAL_ALIGN.NONE)
+                    jc.Delete();
+                else
+                    jc.Value = value;
+              
             }
         }
 
@@ -1061,7 +1078,67 @@ namespace TDV.Docx
         }
     }
 
-    public class R : Node
+    /// <summary>
+    /// Горизонтальное выравнивание параграафа
+    /// </summary>
+    public class Jc : Node
+    {
+        public Jc() : base("w:jc") { }
+        public Jc(XmlElement xmlElement, Node parent) : base(xmlElement, parent, "w:jc")        { }
+
+        public HORIZONTAL_ALIGN Value
+        {
+            get
+            {
+                switch (xmlEl.GetAttribute("w:val"))
+                {
+                    case "left":
+                        return HORIZONTAL_ALIGN.LEFT;
+                    case "center":
+                        return HORIZONTAL_ALIGN.CENTER;
+                    case "right":
+                        return HORIZONTAL_ALIGN.RIGHT;
+                    case "both":
+                        return HORIZONTAL_ALIGN.BOTH;
+                    default:
+                        return HORIZONTAL_ALIGN.NONE;
+                }
+            }
+            set
+            {
+                switch (value)
+                {
+                    case HORIZONTAL_ALIGN.LEFT:
+                        xmlEl.SetAttribute("val", xmlEl.NamespaceURI, "left");
+                        break;
+                    case HORIZONTAL_ALIGN.CENTER:
+                        xmlEl.SetAttribute("val", xmlEl.NamespaceURI, "center");
+                        break;
+                    case HORIZONTAL_ALIGN.RIGHT:
+                        xmlEl.SetAttribute("val", xmlEl.NamespaceURI, "right");
+                        break;
+                    case HORIZONTAL_ALIGN.BOTH:
+                        xmlEl.SetAttribute("val", xmlEl.NamespaceURI, "both");
+                        break;
+                    case HORIZONTAL_ALIGN.NONE:
+                        Delete();
+                        break;
+                    default:
+                        break;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Синоним для Value
+        /// </summary>
+        public HORIZONTAL_ALIGN HorizontalAlign
+        {
+            get { return Value; }
+            set { Value = value; }
+        }
+    }
+        public class R : Node
     {
         public R() : base("w:r") { }
         public R(Node parent) : base(parent, "w:r") { }
@@ -1131,10 +1208,15 @@ namespace TDV.Docx
             }
             set
             {
-                T tNode = (T)childNodes.Where(x => x is T).FirstOrDefault();
-                if (tNode == null)
-                    tNode = NewNodeLast<T>();
-                tNode.xmlEl.InnerText = value;
+                t.xmlEl.InnerText = value;
+            }
+        }
+
+        public T t
+        {
+            get
+            {
+                return FindChildOrCreate<T>();
             }
         }
 
@@ -1142,20 +1224,20 @@ namespace TDV.Docx
         {
             base.InitXmlElement();
             //добавить rPr
-            bool rPrAppended = false;
-            if (parent != null && parent is Paragraph && ((Paragraph)parent).pPr != null)
-            {
-                RProp rProp = ((Paragraph)parent).pPr.rPr;
-                if (rProp != null)
-                {
-                    rPrAppended = true;
-                    xmlEl.AppendChild(rProp.CopyXmlElement());
-                }
-            }
-            if (!rPrAppended)
-                NewNodeFirst<RProp>();
+            //bool rPrAppended = false;
+            //if (parent != null && parent is Paragraph && ((Paragraph)parent).pPr != null)
+            //{
+            //    RProp rProp = ((Paragraph)parent).pPr.rPr;
+            //    if (rProp != null)
+            //    {
+            //        rPrAppended = true;
+            //        xmlEl.AppendChild(rProp.CopyXmlElement());
+            //    }
+            //}
+            //if (!rPrAppended)
+            //    NewNodeFirst<RProp>();
             //доавбить t
-            NewNodeLast<T>();
+            //NewNodeLast<T>();
         }
 
         public new bool IsBold
@@ -1615,7 +1697,7 @@ namespace TDV.Docx
         public SectProp(Node parent) : base(parent, "w:sectPr") { }
         public SectProp(XmlElement xmlElement, Node parent) : base(xmlElement, parent, "w:sectPr") { }
 
-        public PageMarginNode pgMar
+        public PageMarginNode PgMar
         {
             get
             {
@@ -1626,23 +1708,24 @@ namespace TDV.Docx
             }
         }
 
-        public FootnotePr footnotePr
+
+        /// <summary>
+        /// формат сносок
+        /// </summary>
+        public FootnotePr FootnotePr
         {
             get
             {
-                FootnotePr result = childNodes.Where(x => x is FootnotePr).Select(x => (FootnotePr)x).FirstOrDefault();
-                if (result == null)
-                    result = new FootnotePr(this);
-                return result;
+                return FindChildOrCreate<FootnotePr>(INSERT_POS.FIRST);
             }
         }
 
         public void CompareFooter(NUM_FMT fmt, string author = "TDV")
         {
-            if (footnotePr.numFmt.Value != fmt)
+            if (FootnotePr.numFmt.Value != fmt)
             {
                 CreateChangeNode("w:sectPrChange",xmlEl, author);
-                footnotePr.numFmt.Value = fmt;
+                FootnotePr.numFmt.Value = fmt;
             }
         }
 
@@ -1664,16 +1747,16 @@ namespace TDV.Docx
         /// <param name="author"></param>
         public void ComparePageMargin(float top = -1, float bottom = -1, float left = -1, float right = -1, float header = -1, float footer = -1, float gutter = -1, string author = "TDV")
         {
-            if (pgMar.top != top || pgMar.bottom != bottom || pgMar.left != left || pgMar.right != right || pgMar.header != header || pgMar.footer != footer || pgMar.gutter != gutter)
+            if (PgMar.top != top || PgMar.bottom != bottom || PgMar.left != left || PgMar.right != right || PgMar.header != header || PgMar.footer != footer || PgMar.gutter != gutter)
             {
                 CreateChangeNode("w:sectPrChange", xmlEl, author);
-                pgMar.top = top;
-                pgMar.bottom = bottom;
-                pgMar.left = left;
-                pgMar.right = right;
-                pgMar.header = header;
-                pgMar.footer = footer;
-                pgMar.gutter = gutter;
+                PgMar.top = top;
+                PgMar.bottom = bottom;
+                PgMar.left = left;
+                PgMar.right = right;
+                PgMar.header = header;
+                PgMar.footer = footer;
+                PgMar.gutter = gutter;
             }
         }
 
@@ -1699,9 +1782,120 @@ namespace TDV.Docx
                 string id=header.GetAttribute("r:id");
                 DocxDocument docx = GetDocxDocument();
                 ArchFile headerFile= docx.wordRels.GetFileById(id);
-                return new Header(headerFile);
+                return new Header(docx,headerFile);
             }
             throw new KeyNotFoundException("Не удалось найти файл заголовка");
+        }
+
+
+ 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="type"></param>
+        /// <param name="createIfNotExist"> создаст файл футера, если не найдет.пропишет в document.xml.rels. Пропишет в sectProp.</param>
+        /// <returns></returns>
+        public Footer GetFooter(REFERENCE_TYPE type, bool createIfNotExist = false)
+        {
+            string stringType = "unknown";
+            switch (type)
+            {
+                case REFERENCE_TYPE.FIRST:
+                    stringType = "first";
+                    break;
+                case REFERENCE_TYPE.EVEN:
+                    stringType = "even";
+                    break;
+                case REFERENCE_TYPE.DEFAULT:
+                    stringType = "default";
+                    break;
+            }
+
+
+            XmlElement footer = (XmlElement)xmlEl.SelectSingleNode("w:footerReference[@w:type=\"" + stringType + "\"] ", nsmgr);
+            DocxDocument docx = GetDocxDocument();
+            if (footer != null)
+            {
+                string id = footer.GetAttribute("r:id");
+                
+                ArchFile footerFile = docx.wordRels.GetFileById(id);
+                return new Footer(docx,footerFile,docx.wordRels.GetRelationshipById(id));
+            }else
+            {
+                if(!createIfNotExist)
+                    throw new FileNotFoundException("Не удалось найти файл нижнего колонтитула");
+                int maxFooterIndex = 0;
+                ArchFolder wordFolder = docx.sourceFolder.GetFolder("word");
+                foreach (ArchFile file in wordFolder.GetFiles())
+                {
+                    if(file.Name.StartsWith("footer"))
+                    {
+                        int footerIndex = Int32.Parse(file.Name.Replace("footer", "").Replace(".xml", ""));
+                        if (footerIndex > maxFooterIndex)
+                            maxFooterIndex = footerIndex;
+                    }
+                }
+                ArchFile newFooterFile = wordFolder.AddFile($"footer{maxFooterIndex + 1}.xml", new byte[0]);
+                Override ov= docx.contentTypes.GetOverride(newFooterFile.GetFullPath(), true);
+                ov.ContentType = Override.ContentTypes.FOOTER;
+                Relationship newRel= docx.wordRels.NewRelationship(newFooterFile.Name, RELATIONSIP_TYPE.FOOTER);
+                Footer newFooter = new Footer(docx,newFooterFile,newRel, create:true);
+                //прописать в document.xml
+                FooterReference footerReference= docx.document.body.sectProp.GetFooterReference(type, true);
+                footerReference.Id = newRel.Id;
+                
+                return newFooter;
+            }
+        }
+
+        public bool IsTitlePg
+        {
+            get
+            {
+                bool result = childNodes.Where(x => x.xmlEl.Name == "titlePg").Any();
+                return result;
+            }
+            set
+            {
+                if (value)
+                    if (!childNodes.Where(x => x.xmlEl.Name == "titlePg").Any())
+                    {
+                        xmlEl.AppendChild(doc.CreateElement("w:titlePg", doc.DocumentElement.NamespaceURI));
+                    }
+                    else
+                    {
+                        XmlElement forDel = childNodes.Where(x => x.xmlEl.Name == "titlePg").FirstOrDefault()?.xmlEl;
+                        if (forDel != null)
+                            doc.RemoveChild(forDel);
+                    }
+            }
+        }
+
+        public FooterReference GetFooterReference(REFERENCE_TYPE type, bool createIfNotExist = false)
+        {
+            foreach (FooterReference r in FindChilds<FooterReference>())
+            {
+                if (r.Type == type)
+                    return r;
+            }
+            if(!createIfNotExist)
+                throw new KeyNotFoundException();
+            FooterReference newFooter = NewNodeFirst<FooterReference>();
+            newFooter.Type = type;
+            return newFooter;
+        }
+        public FooterReference GetFooterReference(string id, bool createIfNotExist = false)
+        {
+            foreach (FooterReference r in FindChilds<FooterReference>())
+            {
+                if (r.Id==id)
+                    return r;
+            }
+            if (!createIfNotExist)
+                throw new KeyNotFoundException();
+            FooterReference newFooter = NewNodeFirst<FooterReference>();
+            newFooter.Id = id;
+            return newFooter;
         }
     }
 

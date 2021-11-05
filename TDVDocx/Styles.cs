@@ -10,19 +10,17 @@ namespace TDV.Docx
 {
     public class Styles: BaseNode
     {
-        private ArchFile file;
-        public Styles(DocxDocument docx)
+        public Styles(DocxDocument docx):base(docx)
         {
-            docxDocument = docx;
             try
             {
                 file = docx.sourceFolder.FindFile("styles.xml", @"word");
 
-                doc = new XmlDocument();
-                doc.LoadXml(file.GetSourceString());
-                nsmgr = new XmlNamespaceManager(doc.NameTable);
-                nsmgr.AddNamespace("w", doc.DocumentElement.NamespaceURI);
-                xmlEl = (XmlElement)doc.SelectSingleNode(@"w:styles", nsmgr);
+                xmlDoc = new XmlDocument();
+                xmlDoc.LoadXml(file.GetSourceString());
+                nsmgr = new XmlNamespaceManager(xmlDoc.NameTable);
+                nsmgr.AddNamespace("w", xmlDoc.DocumentElement.NamespaceURI);
+                xmlEl = (XmlElement)xmlDoc.SelectSingleNode(@"w:styles", nsmgr);
             }
             catch (Exception e)
             {

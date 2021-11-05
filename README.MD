@@ -262,15 +262,31 @@ cell.CompareStyle(cellStyle, "Dima");
 ![](images/CellCompareStyleNew.JPG)
 
 В каждой ячейки таблицы содержится один или несколько параграфов. Работа с параграфами описана выше
-### Верхний колонтитул
-Верхний колонтитул содержится в одном из файлов header*.xml  
-Document.xml содержит ссылку на файл колонтитула.   
-Заговки бывают 3 видов    
+## Колонтитулы
+
+Бывают верхние и нижние
+Верхний колонтитул содержится в одном из файлов word\header*.xml, где * - порядковый номер
+Нижний колонтитул содержится в одном из файлов word\footer*.xml, где * - порядковый номер  
+
+Document.xml в секции sectPr содержит ссылку на файл колонтитула:
+```xml
+<w:sectPr w:rsidR="00AE661F" w:rsidRPr="004151FC">
+	<w:headerReference w:type="even" r:id="rId6"/>
+	<w:headerReference w:type="default" r:id="rId7"/>
+	<w:footerReference w:type="even" r:id="rId8"/>
+	<w:footerReference w:type="default" r:id="rId9"/>									   
+	<w:headerReference w:type="first" r:id="rId10"/>
+	<w:footerReference w:type="first" r:id="rId11"/>
+   ...			 
+</w:sectPr>
+```
+
+колонитулы бывают 3 видов    
 DEFAULT - по умолчанию  
 EVEN - каждый четный лист  
 FIRST - Для первого листа  
 
-Получение конкретного header:
+Получение верхнего колонтитул:
 ```csharp
 Header headerFirst = docxDocument.document.body.sectProp.GetHeader(REFERENCE_TYPE.FIRST);
 Header headerDefault = docxDocument.document.body.sectProp.GetHeader(REFERENCE_TYPE.DEFAULT);
@@ -283,8 +299,34 @@ foreach (Node n in headerDefault.childNodes)
     }
 }
 h.Apply();
-
 ```
+
+### Нумерация страниц
+Нумерация возможна только для колонтитула типа DEFAULT
+
+```csharp
+//получим колонитул
+Footer footer=doc.document.body.sectProp.GetFooter(REFERENCE_TYPE.DEFAULT,true);
+```
+Метод <b>GetFooter</b>(REFERENCE_TYPE type, bool createIfNotExist = false) может создавать файлы колонтитулов, если они не найдены  в документе. За это отвечает параметр <b>createIfNotExist</b>
+
+
+```csharp
+// свойство footer.PageNumbers отвечает за нумерацию страниц
+//включить нумерацию
+footer.PageNumbers = DOC_PART_GALLERY_VALUE.PAGE_NUMBERS_BOTTOM_OF_PAGE;
+//установим выравнивание по горизонтали для номеров страниц (по умолчанию - по центру)
+footer.PageNumbersHorizontalAlign = HORIZONTAL_ALIGN.LEFT; 
+
+//отключить нумерацию страниц
+footer.PageNumbers = DOC_PART_GALLERY_VALUE.NONE;
+
+//можно отключить нумерацию для первой страницы сделав ее титульной:
+doc.document.body.sectProp.IsTitlePg = true;
+```
+
+
+
 ### Формат сносок
 NUM_FMT(enum):  
 <b>DEFAULT</b> -  1, 2, 3  
@@ -506,3 +548,7 @@ doc.Apply();
 ```
 Результат:  
 ![](images/ListComapre.JPG)  
+
+
+# Нумерация страниц
+За нумерацию страниц отвечает колонтитул

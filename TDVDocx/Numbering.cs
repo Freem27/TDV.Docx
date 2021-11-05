@@ -20,9 +20,8 @@ namespace TDV.Docx
     {
         private ArchFile file;
         private XmlDocument xmlDoc;
-        public Numbering(DocxDocument docx)
+        public Numbering(DocxDocument docx):base(docx)
         {
-            docxDocument = docx;
             try
             {
                 file = docx.sourceFolder.FindFile("numbering.xml", @"word");
@@ -46,18 +45,7 @@ namespace TDV.Docx
         }
 
 
-        public void Apply()
-        {
-            if (!IsExist)
-                throw new Exception("numbering.xml does not exist :(");
-            using (StringWriter stringWriter = new StringWriter())
-            using (XmlWriter xw = XmlWriter.Create(stringWriter))
-            {
-                xmlDoc.WriteTo(xw);
-                xw.Flush();
-                file.content = Encoding.UTF8.GetBytes(stringWriter.GetStringBuilder().ToString());
-            }
-        }
+        
 
         /// <summary>
         /// Перебирает связи Nums и возращает AbstractNumId

@@ -156,6 +156,7 @@ namespace TDV.Docx
     /// </summary>
     public enum REFERENCE_TYPE { FIRST,EVEN,DEFAULT}
 
+    public enum INSERT_POS { FIRST, LAST }
     public class Node
     {
         protected Node(string qualifiedName="")
@@ -166,6 +167,11 @@ namespace TDV.Docx
         public string GenerateGuid()
         {
             return Guid.NewGuid().ToString().Substring(0,8).ToUpper();
+        }
+
+        public int GenerateId(int len=9)
+        {
+            return new Random().Next((int)Math.Pow(10.0, (double)(len - 1)), (int)Math.Pow(10.0 , (double)len) - 1);
         }
 
         public XmlElement CopyXmlElement()
@@ -220,6 +226,24 @@ namespace TDV.Docx
         public T FindChild<T>() where T : Node
         {
             return (T)childNodes.Where(x => x is T).FirstOrDefault();
+        }
+
+        public T FindChildOrCreate<T>(INSERT_POS pos=INSERT_POS.LAST) where T : Node
+        {
+            T result= (T)childNodes.Where(x => x is T).FirstOrDefault();
+            if(result==null)
+                switch(pos)
+                {
+                    case INSERT_POS.LAST:
+                        result = NewNodeLast<T>();
+                        break;
+                    case INSERT_POS.FIRST:
+                        result = NewNodeFirst<T>();
+                        break;
+                    default:
+                        throw new Exception($"Не реализовано для INSERT_POS.{pos.ToString()}");
+                }
+            return result;
         }
 
         public List<T> FindChilds<T>() where T : Node
@@ -460,6 +484,42 @@ namespace TDV.Docx
                         case "w:sectPrChange":
                             result.Add(new SectPrChange(item, this));
                             break;
+                        case "w:sdt":
+                            result.Add(new Std(item, this));
+                            break;
+                        case "w:sdtPr":
+                            result.Add(new StdPr(item, this));
+                            break;
+                        case "w:docPartObj":
+                            result.Add(new DocPartObj(item, this));
+                            break;
+                        case "w:docPartGallery":
+                            result.Add(new DocPartGallery(item, this));
+                            break;
+                        case "w:fldChar":
+                            result.Add(new FldChar(item, this));
+                            break;
+                        case "w:instrText":
+                            result.Add(new InstrText(item, this));
+                            break;
+                        case "w:sdtContent":
+                            result.Add(new SdtContent(item, this));
+                            break;
+                        case "w:footerReference":
+                            result.Add(new FooterReference(item, this));
+                            break;
+                        case "Relationship":
+                            result.Add(new Relationship(item, this));
+                            break;
+                        case "Override":
+                            result.Add(new Override(item, this));
+                            break;
+                        case "w:jc":
+                            result.Add(new Jc(item, this));
+                            break;
+                        case "w:id":
+                            result.Add(new IdNode(item, this));
+                            break;
                         default:
                             result.Add(new Node(item, this, item.Name));
                             break;
@@ -532,13 +592,11 @@ namespace TDV.Docx
         //добавляет новую НОДУ в конец списка
         private T NewNode<T>() where T: Node
         {
-            //Node result = new Node(xmlEl.OwnerDocument.CreateElement(""),this);
             T result = Activator.CreateInstance<T>();
             result.doc = xmlEl.OwnerDocument;
             result.parent = this;
             result.nsmgr = nsmgr;
             result.InitXmlElement();
-            //xmlEl.AppendChild(result.xmlEl);
             return result;
         }
 
@@ -592,6 +650,10 @@ namespace TDV.Docx
                 if(xmlEl!=null)
                     return xmlEl.InnerText;
                 return null;
+            }
+            set
+            {
+                xmlEl.InnerText = value;
             }
         }
 

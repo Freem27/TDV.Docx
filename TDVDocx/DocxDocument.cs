@@ -14,8 +14,11 @@ namespace TDV.Docx
         public Styles styles;
         public FootNotes footNotes;
         public Numbering numbering;
+        public ContentTypes contentTypes;
+        public List<BaseNode> FilesForApply;
         public DocxDocument(Stream stream)
         {
+            FilesForApply = new List<BaseNode>();
             sourceFolder = new ArchFolder(null);
             ZipArchive arch = new ZipArchive(stream);
             foreach (ZipArchiveEntry e in arch.Entries)
@@ -35,10 +38,7 @@ namespace TDV.Docx
             styles = new Styles(this);
             footNotes = new FootNotes(this);
             numbering = new Numbering(this);
-        }
-        public static string Test()
-        {
-            return "test";
+            contentTypes = new ContentTypes(this);
         }
 
         public MemoryStream ToStream()
@@ -62,11 +62,9 @@ namespace TDV.Docx
 
         public void Apply()
         {
-            document.Apply();
-            if(footNotes.IsExist)
-                footNotes.Apply();
-            if(numbering.IsExist)
-                numbering.Apply();
+            foreach(BaseNode f in FilesForApply)
+                if(f.IsExist)
+                    f.Apply();
             
         }
 
@@ -80,6 +78,30 @@ namespace TDV.Docx
     {
         public string Name;
         public ArchFolder parent;
+        public List<ArchFile> GetFiles()
+        {
+            List<ArchFile> result= new List<ArchFile>();
+            foreach(string fileName in files.Keys)
+            {
+                result.Add(files[fileName]);
+            }
+            return result;
+        }
+        public ArchFolder GetFolder(string name,bool createIfExist=false)
+        {
+            ArchFolder result = null;
+
+            if (folders.ContainsKey(name))
+                result = folders[name];
+            else
+            {
+                if (!createIfExist)
+                    throw new FileNotFoundException($"Не удалось найти папку {name}");
+                folders.Add(name, new ArchFolder(name, this));
+                result = folders[name];
+            }
+            return result;
+        }
 
         public ArchFile FindFile(string fileName, string path = null)
         {
@@ -111,8 +133,9 @@ namespace TDV.Docx
             files = new Dictionary<string, ArchFile>();
         }
 
-        public void AddFile(string filePath, byte[] content)
+        public ArchFile AddFile(string filePath, byte[] content)
         {
+            ArchFile result = null;
             string[] pathList = filePath.Split('/');
             ArchFolder targetFolder = this;
             for (int i = 0; i < pathList.Length; i++)
@@ -120,15 +143,19 @@ namespace TDV.Docx
                 string entryName = pathList[i];
                 if (i == pathList.Length - 1)
                 {
-                    targetFolder.files.Add(entryName, new ArchFile(entryName, content, targetFolder));
+                    result= new ArchFile(entryName, content, targetFolder);
+                    targetFolder.files.Add(entryName, result);
                 }
                 else
                 {
                     if (!targetFolder.folders.ContainsKey(entryName))
+                    {
                         targetFolder.folders.Add(entryName, new ArchFolder(entryName, targetFolder));
+                    }
                     targetFolder = targetFolder.folders[entryName];
                 }
             }
+            return result;
         }
 
         public List<KeyValuePair<string, ArchFile>> GetAllFilesRecurcive()
