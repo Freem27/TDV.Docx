@@ -232,36 +232,6 @@ newP.pPr.rPr.SetCorrectionMode("ins", "Дядя Дима");
 ![](images/CorrectSetTextOld.jpg)   
 Исправленный:  
 ![](images/NewNodeAfterNew.JPG)
-### Стиль таблицы
-```chsarp
-if (node is Table)
-{
-    Table tbl = (Table)node;
-    TableStyle tableStyle = new TableStyle(new Border(), new Border(), new Border(), new Border(),
-        new Border(), new Border(),
-        true, 8500, TABLE_WIDTH_TYPE.PTC, 0, TABLE_WIDTH_TYPE.DXA);
-    tbl.CompateStyle(tableStyle, "Trifonov");
-}
-```
-Исходный документ:  
-![](images/TableCompateStyleOld.jpg)   
-Исправленный:  
-![](images/TableCompateStyleNew.JPG)
-
-можно применять стили к конкретным ячейкам
-```chsarp
-Table tbl = (Table)node;
-Tc cell = tbl.GetCell(1, 1); //вторая строка, второй столбец
-CellStyle cellStyle = new CellStyle(VERTICAL_ALIGN.CENTER, new Border(), new Border(),
-    new Border(), new Border(), 3000, TABLE_WIDTH_TYPE.DXA);
-cell.CompareStyle(cellStyle, "Dima");
-```
-Исходный документ:  
-![](images/TableCompateStyleOld.jpg)   
-Исправленный:  
-![](images/CellCompareStyleNew.JPG)
-
-В каждой ячейки таблицы содержится один или несколько параграфов. Работа с параграфами описана выше
 ## Колонтитулы
 
 Бывают верхние и нижние
@@ -325,6 +295,41 @@ footer.PageNumbers = DOC_PART_GALLERY_VALUE.NONE;
 doc.document.body.sectProp.IsTitlePg = true;
 ```
 
+
+### Нумерация страниц для документов с несколькими секциям
+Документ может быть разбит на секции, например листы с разной ориентацией или размером
+у каждой секции есть блок sectProp, которой может ссылаться на разные колонтитулы  
+код ниже показывает как корректно проставить номера страниц начиная со второй для документа с множеством секций
+```csharp
+string defaultFooterId = null;
+foreach (Section section in docx.document.Sections)
+{
+    if (section.Pos == 0 && section.FindChilds<Paragraph>().Where(x => !string.IsNullOrEmpty(x.Text)).Count() < 10)
+        section.sectProp.CompareIsTitlePg(true);
+    //нижний колонтитул по умолчанию должен иметь нумерацию страниц справа
+    Footer footerDefault = section.sectProp.GetFooter(REFERENCE_TYPE.DEFAULT, createIfNotExist: true);
+    section.sectProp.ComparePageStart(1);
+    if (defaultFooterId == null)
+        defaultFooterId = section.sectProp.GetFooterReference(REFERENCE_TYPE.DEFAULT).Id;
+    else
+        section.sectProp.GetFooterReference(REFERENCE_TYPE.DEFAULT).Id = defaultFooterId;
+    footerDefault.ComparePageNumbers(DOC_PART_GALLERY_VALUE.PAGE_NUMBERS_BOTTOM_OF_PAGE, HORIZONTAL_ALIGN.RIGHT);
+    //если нижний колонтиту содержит текст привести его к заданному стилю
+    //привести остальные нижение колонтитулы к заданному стилю
+    foreach (FooterReference fRef in section.sectProp.FindChilds<FooterReference>().Where(x => x.Type != REFERENCE_TYPE.DEFAULT).ToList())
+    {
+        Footer f = section.sectProp.GetFooter(fRef.Type);
+        f.ComparePageNumbers(DOC_PART_GALLERY_VALUE.NONE);
+    }
+
+    //привести все верхние колонтитулы к заданному стилю
+    foreach (HeaderReference hRef in section.sectProp.FindChilds<HeaderReference>().ToList())
+    {
+        Header h = section.sectProp.GetHeader(hRef.Type);
+        h.ComparePageNumbers(DOC_PART_GALLERY_VALUE.NONE);
+    }
+}
+```
 
 
 ### Формат сносок
@@ -547,8 +552,81 @@ foreach (Node node in doc.document.body.childNodes)
 doc.Apply();
 ```
 Результат:  
-![](images/ListComapre.JPG)  
+![](images/ListComapre.JPG) 
 
+# Секции документа
+ Документ может быть разбит на секции, например листы с разной ориентацией или размером
+у каждой секции есть блок sectProp, которой может ссылаться на разные колонтитулы 
 
-# Нумерация страниц
-За нумерацию страниц отвечает колонтитул
+Все секции хранятся в document.xml:
+```csharp
+List<Section> sections = doc.document.Sections;
+```
+
+каждая секция содержит список принадлежащих ей нод и свойств:
+```csharp
+List<Node> nodes = sections.First().childNodes; //список нод секции
+Console.WriteLine(sections.First().Pos); //порядковый номер секции
+SectProp sectProp = sections.First().sectProp; //свойства секции. размер и положение страницы, ссылки на колонтитулы, отступы страницы 
+object tag = sections.First().Tag; //Переменная для хранения своих комментариев разработчка(пользователя библиотеки) к секции. Не используется внутри библиотеки
+```
+
+все дочерние ноды documnt.xml имеют свойство Section. оно вычисляет секцию, к которой принадлежит эта нода
+```chsarp
+foreach (Node n in doc.document.body.childNodes)
+	Console.Write(n.Section.Pos);
+```
+ 
+На секцию ссылаются только ноды первого уровня. Все вложенные ноды не ссылаются на секцию. При желании можно вычислить через параметр parent, который ссылается на родительскую ноду
+
+### Расчет секций
+Расчет секций вызывается при первом обращении к doc.document.Sections  
+После добавления новых нод может потребоваться пересчет. Это возможно сделать вручную, вызывав метод UpdateSections() класса Document
+```csharp
+doc.document.UpdateSections();
+``` 
+ 
+#Таблицы
+## Стиль таблицы
+```chsarp
+if (node is Table)
+{
+    Table tbl = (Table)node;
+    TableStyle tableStyle = new TableStyle(new Border(), new Border(), new Border(), new Border(),
+        new Border(), new Border(),
+        true, 8500, TABLE_WIDTH_TYPE.PTC, 0, TABLE_WIDTH_TYPE.DXA);
+    tbl.CompateStyle(tableStyle, "Trifonov");
+}
+```
+Исходный документ:  
+![](images/TableCompateStyleOld.jpg)   
+Исправленный:  
+![](images/TableCompateStyleNew.JPG)
+
+можно применять стили к конкретным ячейкам
+```chsarp
+Table tbl = (Table)node;
+Tc cell = tbl.GetCell(1, 1); //вторая строка, второй столбец
+CellStyle cellStyle = new CellStyle(VERTICAL_ALIGN.CENTER, new Border(), new Border(),
+    new Border(), new Border(), 3000, TABLE_WIDTH_TYPE.DXA);
+cell.CompareStyle(cellStyle, "Dima");
+```
+Исходный документ:  
+![](images/TableCompateStyleOld.jpg)   
+Исправленный:  
+![](images/CellCompareStyleNew.JPG)
+
+В каждой ячейки таблицы содержится один или несколько параграфов. Работа с параграфами описана выше
+
+## Выравнивание колонок таблиц
+иногда ячейки таблиц идут со сдвигом:
+![](images/tableBeforeFixColSizes.JPG) 
+
+это случается изза ошибок в разметке документа
+в TDV.Docx реализована функция, которая в некоторых случаях исправляет разметку:
+```csharp
+Table t = (Table)node;
+SectProp currSectProp = t.Section.sectProp;
+t.FixColumnsSizes();
+```
+![](images/tableAfterFixColSizes.JPG) 

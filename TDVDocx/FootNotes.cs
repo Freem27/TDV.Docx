@@ -10,7 +10,6 @@ namespace TDV.Docx
 {
     public class FootNotes : BaseNode
     {
-        
         internal FootNotes(DocxDocument docx) : base(docx,"w:footnotes")
         {
             docxDocument = docx;
@@ -23,7 +22,7 @@ namespace TDV.Docx
                 nsmgr.AddNamespace("w", xmlDoc.DocumentElement.NamespaceURI);
                 xmlEl = (XmlElement)xmlDoc.SelectSingleNode("/w:footnotes", nsmgr);
             }
-            catch (FileNotFoundException e)
+            catch (FileNotFoundException)
             {
                 IsExist = false;
             }
@@ -74,17 +73,51 @@ namespace TDV.Docx
             
         }
 
+
+
+        public void ComparePageNumbers(DOC_PART_GALLERY_VALUE pageNumbers,HORIZONTAL_ALIGN hAlign=HORIZONTAL_ALIGN.CENTER,string author="TDV")
+        {
+            if (pageNumbers == DOC_PART_GALLERY_VALUE.NONE && this.PageNumbers == DOC_PART_GALLERY_VALUE.NONE)
+                return;
+            else if(this.PageNumbers!= pageNumbers || PageNumbersHorizontalAlign != hAlign)
+            {
+                this.PageNumbers = pageNumbers;
+                if(pageNumbers!=DOC_PART_GALLERY_VALUE.NONE)
+                    PageNumbersHorizontalAlign = hAlign;
+                CustomXmlInsRangeStart customXmlInsRangeStart = FindChild<CustomXmlInsRangeStart>();
+                if(customXmlInsRangeStart==null)
+                {
+                    customXmlInsRangeStart = NewNodeBefore<CustomXmlInsRangeStart>(Std);
+                    customXmlInsRangeStart.Author = author;
+                    CustomXmlInsRangeEnd customXmlInsRangeEnd = NewNodeAfter<CustomXmlInsRangeEnd>(Std);
+                    customXmlInsRangeEnd.Id = customXmlInsRangeStart.Id;
+                }
+                Paragraph p = Std.SdtContent.P;
+                Ins ins=p.NewNodeLast<Ins>();
+                ins.Author = author;
+                foreach (Node n in p.childNodes)
+                    if (n is R)
+                        n.MoveTo(ins);
+            }
+        }
+
         public DOC_PART_GALLERY_VALUE PageNumbers
         {
             get
             {
-                DocPartGallery docPartGallery= FindChild<Std>()?.FindChild<StdPr>()?.FindChild<DocPartObj>()?.FindChild<DocPartGallery>();
+                DocPartGallery docPartGallery= FindChild<Sdt>()?.FindChild<StdPr>()?.FindChild<DocPartObj>()?.FindChild<DocPartGallery>();
                 if (docPartGallery == null)
                     return DOC_PART_GALLERY_VALUE.NONE;
                 return docPartGallery.Value;
             }
             set
             {
+                //убрать pageNumbers, если они в обычном параграфе, а не в блоке SDT
+                foreach(Paragraph p in FindChilds<Paragraph>())
+                {
+                    if (p.Text.Contains("PAGE") && p.Text.Contains("MERGEFORMAT"))
+                        p.Delete();
+                }
                 switch(value)
                 {
                     case DOC_PART_GALLERY_VALUE.NONE:
@@ -95,6 +128,8 @@ namespace TDV.Docx
                         Std.StdPr.DocPartObj.DocPartGallery.Value = value;
                         Std.StdPr.DocPartObj.DocPartUnique = true;
                         Paragraph p = Std.SdtContent.P;
+                        while(p.childNodes.Count>0)
+                            p.childNodes.First().Delete();
                         p.pPr.HorizontalAlign = HORIZONTAL_ALIGN.CENTER;
                         R r1 = p.NewNodeLast<R>();
                         r1.NewNodeLast<FldChar>().FldCharType = FLD_CHAR_TYPE.BEGIN;
@@ -104,14 +139,13 @@ namespace TDV.Docx
                         r3.NewNodeLast<FldChar>().FldCharType = FLD_CHAR_TYPE.SEPARATE;
                         R r4 = p.NewNodeLast<R>();
                         r4.rPr.NoProof = true;
+                        r4.t.Text = "2";
                         R r5 = p.NewNodeLast<R>();
                         r5.NewNodeLast<FldChar>().FldCharType = FLD_CHAR_TYPE.END;
-
                         break;
                     default:
                         throw new NotImplementedException();
                 }
-
             }
         }
         public HORIZONTAL_ALIGN PageNumbersHorizontalAlign
@@ -126,29 +160,44 @@ namespace TDV.Docx
             }
         }
 
-        public Std Std
+        public Sdt Std
         {
-            get { return FindChildOrCreate<Std>(INSERT_POS.FIRST); }
+            get { return FindChildOrCreate<Sdt>(INSERT_POS.FIRST); }
         }
 
-        public string Text()
+        public new string Text()
         {
             string result = string.Join(" ", childNodes.Where(x => x is Paragraph).Select(x => ((Paragraph)x).Text));
             return result;
         }
 
-        
-
-        public void Apply()
+        public override void ApplyAllFixes()
         {
-            using (StringWriter stringWriter = new StringWriter())
-            using (XmlWriter xw = XmlWriter.Create(stringWriter))
+            foreach (Node n in childNodes)
             {
-                xmlDoc.WriteTo(xw);
-                xw.Flush();
-                file.content = Encoding.UTF8.GetBytes(stringWriter.GetStringBuilder().ToString());
+                if (n is Paragraph)
+                {
+                    Paragraph p = (Paragraph)n;
+                    p.ApplyAllFixes();
+                }
+                else if (n is Table)
+                {
+                    Table t = (Table)n;
+                    t.ApplyAllFixes();
+                }
+                else if (n is SectProp)
+                {
+                    n.FindChild<SectPrChange>()?.Delete();
+                }
+                else if (n is CustomXmlInsRangeStart)
+                    n.Delete();
+                else if (n is CustomXmlInsRangeEnd)
+                    n.Delete();
+                else if (n is Sdt)
+                    ((Sdt)n).ApplyAllFixes();
             }
         }
+
     }
 
     public class Footnote : Node
@@ -208,10 +257,118 @@ namespace TDV.Docx
         }
     }
 
-    public class Std : Node
+    public class CustomXmlInsRangeStart : Node
     {
-        public Std() : base("w:sdt") { }
-        public Std(XmlElement xmlElement, Node parent) : base(xmlElement, parent, "w:sdt") { }
+        public CustomXmlInsRangeStart() : base("w:customXmlInsRangeStart") { }
+        public CustomXmlInsRangeStart(XmlElement xmlElement, Node parent) : base(xmlElement, parent, "w:customXmlInsRangeStart") {
+            
+        }
+        public int Id
+        {
+            get
+            {
+                try { 
+                    return Int32.Parse(xmlEl.GetAttribute("id",xmlEl.NamespaceURI));
+                }
+                catch
+                {
+                    return 0;
+                }
+            }
+            set
+            {
+                xmlEl.SetAttribute("id", xmlEl.NamespaceURI, (value).ToString());
+            }
+        }
+        public string Author
+        {
+            get
+            {
+                return xmlEl.GetAttribute("w:author");
+            }
+            set
+            {
+                xmlEl.SetAttribute("author", xmlEl.NamespaceURI, value);
+            }
+        }
+
+        public DateTime? Date
+        {
+            get
+            {
+                try
+                {
+                    return DateTime.Parse(xmlEl.GetAttribute("w:date"));
+                }catch
+                {
+                    return null;
+                }
+            }
+            set
+            {
+                if(value==null)
+                    xmlEl.RemoveAttribute("date", xmlEl.NamespaceURI);
+                else
+                    xmlEl.SetAttribute("date", xmlEl.NamespaceURI, ((DateTime)value).ToString("yyyy-MM-ddTHH:mm:ssZ"));
+            }
+        }
+
+        public override void InitXmlElement()
+        {
+            base.InitXmlElement();
+            if (string.IsNullOrEmpty(xmlEl.GetAttribute("id", xmlEl.NamespaceURI)))
+                xmlEl.SetAttribute("id", xmlEl.NamespaceURI, (xmlDoc.GetLastId(0) + 1).ToString());
+            Author = "TDV";
+            xmlEl.SetAttribute("date", xmlEl.NamespaceURI, DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ssZ"));
+        }
+
+        public override string ToString()
+        {
+            return $"w:customXmlInsRangeStart id={Id} Author={Author}";
+        }
+    }
+
+
+    /// <summary>
+    /// Закрывающий тег для  w:customXmlInsRangeStart
+    /// !!!! Важно id должен быть равен соответсвующему открывающему тегу customXmlInsRangeStart.id
+    /// </summary>
+    public class CustomXmlInsRangeEnd : Node
+    {
+        public CustomXmlInsRangeEnd() : base("w:customXmlInsRangeEnd") { }
+        public CustomXmlInsRangeEnd(XmlElement xmlElement, Node parent) : base(xmlElement, parent, "w:customXmlInsRangeEnd")
+        {
+        }
+        public int Id
+        {
+            get
+            {
+                try
+                {
+                    return Int32.Parse(xmlEl.GetAttribute("w:id", xmlEl.NamespaceURI));
+                }
+                catch
+                {
+                    return 0;
+                }
+            }
+            set
+            {
+                xmlEl.SetAttribute("id", xmlEl.NamespaceURI, (value).ToString());
+            }
+        }
+
+        public override string ToString()
+        {
+            return $"w:customXmlInsRangeEnd id={Id}";
+        }
+
+    }
+
+    public class Sdt : Node
+    {
+        public Sdt() : base("w:sdt") { }
+        public Sdt(XmlElement xmlElement, Node parent) : base(xmlElement, parent, "w:sdt") { }
         public StdPr StdPr
         {
             get
@@ -224,6 +381,31 @@ namespace TDV.Docx
             get
             {
                 return FindChildOrCreate<SdtContent>();
+            }
+        }
+
+        public override void ApplyAllFixes()
+        {
+            foreach (Node n in childNodes)
+            {
+                if (n is Paragraph)
+                {
+                    ((Paragraph)n).ApplyAllFixes();
+                }
+                else if (n is Table)
+                {
+                    ((Table)n).ApplyAllFixes();
+                }
+                else if (n is SectProp)
+                {
+                    n.FindChild<SectPrChange>()?.Delete();
+                }
+                else if (n is CustomXmlInsRangeStart)
+                    n.Delete();
+                else if (n is CustomXmlInsRangeEnd)
+                    n.Delete();
+                else if (n is SdtContent)
+                    ((SdtContent)n).ApplyAllFixes();
             }
         }
     }
@@ -298,15 +480,15 @@ namespace TDV.Docx
             set
             {
                 if(value)
-                    if(!childNodes.Where(x => x.xmlEl.Name == "docPartUnique").Any())
+                    if(!childNodes.Where(x => x.xmlEl.Name == "w:docPartUnique").Any())
                     {
-                        xmlEl.AppendChild(doc.CreateElement("w:docPartUnique", doc.DocumentElement.NamespaceURI));
+                        xmlEl.AppendChild(xmlDoc.CreateElement("w:docPartUnique", xmlDoc.DocumentElement.NamespaceURI));
                     }
                 else
                 {
                     XmlElement forDel = childNodes.Where(x => x.xmlEl.Name == "docPartUnique").FirstOrDefault()?.xmlEl;
                     if (forDel != null)
-                        doc.RemoveChild(forDel);
+                        xmlDoc.RemoveChild(forDel);
                 }
             }
         }
@@ -403,7 +585,8 @@ namespace TDV.Docx
             }
             set
             {
-                xmlEl.SetAttribute("id", nsmgr.LookupNamespace("r") ,value);
+                SetAttribute("r:id", value);
+                
             }
         }
 
@@ -412,7 +595,7 @@ namespace TDV.Docx
         {
             get
             {
-                switch(xmlEl.GetAttribute("w:type"))
+                switch(GetAttribute("w:type"))
                 {
                     case "first":
                         return REFERENCE_TYPE.FIRST;
@@ -438,9 +621,10 @@ namespace TDV.Docx
                         stringType = "default";
                         break;
                 }
-                xmlEl.SetAttribute("type", xmlEl.NamespaceURI, stringType);
+                SetAttribute("w:type", stringType);
             }
         }
 
     }
+    
 }

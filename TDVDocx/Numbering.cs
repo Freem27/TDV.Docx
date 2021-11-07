@@ -18,14 +18,12 @@ namespace TDV.Docx
     }
     public class Numbering:BaseNode
     {
-        private ArchFile file;
-        private XmlDocument xmlDoc;
         public Numbering(DocxDocument docx):base(docx)
         {
             try
             {
                 file = docx.sourceFolder.FindFile("numbering.xml", @"word");
-
+                List<Section> sections = docxDocument.document.Sections;
                 xmlDoc = new XmlDocument();
                 xmlDoc.LoadXml(file.GetSourceString());
                 nsmgr = new XmlNamespaceManager(xmlDoc.NameTable);
@@ -33,7 +31,7 @@ namespace TDV.Docx
                 nsmgr.AddNamespace("w15", "http://schemas.microsoft.com/office/word/2012/wordml");
                 xmlEl = (XmlElement)xmlDoc.SelectSingleNode("/w:numbering", nsmgr);
             }
-            catch (FileNotFoundException e)
+            catch (FileNotFoundException)
             {
                 IsExist = false;
             }

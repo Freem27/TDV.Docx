@@ -10,7 +10,7 @@ namespace TDV.Docx
 {
     public enum RELATIONSIP_TYPE
     {
-        FOOTER, STYLES, ENDNOTES, NUMBERING, CUSTOM_XML, FOOTNOTES, WEB_SETTINGS, THEME, SETTINGS, FONT_TABLE
+        FOOTER, STYLES, ENDNOTES, NUMBERING, CUSTOM_XML, FOOTNOTES, WEB_SETTINGS, THEME, SETTINGS, FONT_TABLE, HEADER
     }
     public class WordRels:BaseNode
     {
@@ -150,6 +150,8 @@ namespace TDV.Docx
                         return RELATIONSIP_TYPE.SETTINGS;
                     case "http://schemas.openxmlformats.org/officeDocument/2006/relationships/fontTable":
                         return RELATIONSIP_TYPE.FONT_TABLE;
+                    case "http://schemas.openxmlformats.org/officeDocument/2006/relationships/header":
+                        return RELATIONSIP_TYPE.HEADER;
                 }
                 throw new Exception($"Неизвестный тип связи {xmlEl.GetAttribute("Type")}");
             }
@@ -188,10 +190,12 @@ namespace TDV.Docx
                     case RELATIONSIP_TYPE.FONT_TABLE:
                         type = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/fontTable";
                         break;
+                    case RELATIONSIP_TYPE.HEADER:
+                        type = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/header";
+                        break;
                     default:
                         throw new Exception($"Неизвестный тип связи {value.ToString()}");
-                }
-                
+                }                
                 xmlEl.SetAttribute("Type", type);
             }
         }

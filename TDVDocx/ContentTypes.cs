@@ -91,6 +91,7 @@ namespace TDV.Docx
         public static class ContentTypes
         {
             public static string FOOTER = "application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml";
+            public static string HEADER = "application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml";
         }
         public Override() : base("Override") { }
         public Override(XmlElement xmlElement, Node parent) : base(xmlElement, parent, "Override") { }

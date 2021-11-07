@@ -65,7 +65,12 @@ namespace TDV.Docx
             foreach(BaseNode f in FilesForApply)
                 if(f.IsExist)
                     f.Apply();
-            
+        }
+
+        public void ApplyAllFixes()
+        {
+            foreach (BaseNode f in FilesForApply)
+                f.ApplyAllFixes();
         }
 
         public byte[] ToBytes()

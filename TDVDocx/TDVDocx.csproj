@@ -47,6 +47,7 @@
     <Compile Include="Addons.cs" />
     <Compile Include="Document.cs" />
     <Compile Include="DocxDocument.cs" />
+    <Compile Include="Extentions.cs" />
     <Compile Include="FootNotes.cs" />
     <Compile Include="Numbering.cs" />
     <Compile Include="Headers.cs" />
