@@ -5,19 +5,108 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml;
+using System.Xml.XPath;
 using System.Drawing;
 
 namespace TDV.Docx
 {
     public class BaseNode : Node
     {
-        protected BaseNode(string qualifiedName = ""):base(qualifiedName)
+        internal ArchFile file;
+        protected BaseNode(DocxDocument docxDocument,string qualifiedName = ""):base(qualifiedName)
         {
+            this.docxDocument = docxDocument;
             IsExist = true;
+            GetDocxDocument().FilesForApply.Add(this);
         }
 
+        public new virtual void ApplyAllFixes() {
+            foreach (Node n in childNodes)
+            {
+                if (n is Paragraph)
+                {
+                    Paragraph p = (Paragraph)n;
+                    p.ApplyAllFixes();
+                }
+                else if (n is Table)
+                {
+                    Table t = (Table)n;
+                    t.ApplyAllFixes();
+                }
+                else if (n is CustomXmlInsRangeStart)
+                    n.Delete();
+                else if (n is CustomXmlInsRangeEnd)
+                    n.Delete();
+                else if (n is Sdt)
+                {
+                    ((Sdt)n).ApplyAllFixes();
+                }
+            }
+        }
+
+        internal void FillNamespaces()
+        {
+            nsmgr = new XmlNamespaceManager(xmlDoc.NameTable);
+            IDictionary<string, string> localNamespaces = null;
+            XPathNavigator xNav = xmlDoc.CreateNavigator();
+            while (xNav.MoveToFollowing(XPathNodeType.Element))
+            {
+                localNamespaces = xNav.GetNamespacesInScope(XmlNamespaceScope.Local);
+                foreach (var localNamespace in localNamespaces)
+                {
+                    string prefix = localNamespace.Key;
+                    if (string.IsNullOrEmpty(prefix))
+                        prefix = "DEFAULT";
+                    nsmgr.AddNamespace(prefix, localNamespace.Value);
+                }
+            }
+        }
+
+        public void Apply()
+        {
+            if (!IsExist)
+                throw new Exception("numbering.xml does not exist :(");
+            using (StringWriter stringWriter = new StringWriter())
+            using (XmlWriter xw = XmlWriter.Create(stringWriter))
+            {
+                xmlDoc.WriteTo(xw);
+                xw.Flush();
+                file.content = Encoding.UTF8.GetBytes(stringWriter.GetStringBuilder().ToString());
+            }
+        }
         public bool IsExist;
         public DocxDocument docxDocument;
+
+        public override string ToString()
+        {
+            return $"Base Node {this.GetType().Name} File={file.Name}";
+        }
+    }
+
+
+    public class Section
+    {
+        public Section(int Pos)
+        {
+            this.Pos = Pos;
+            childNodes = new List<Node>();
+        }
+        /// <summary>
+        /// Переменная для хранения своих комментариев к секции. 
+        /// Не используется внутри библиотеки
+        /// </summary>
+        public object Tag;
+        public List<Node> childNodes;
+        public SectProp sectProp;
+        public List<T> FindChilds<T>() where T : Node
+        {
+            return childNodes.Where(x => x is T).Select(x => (T)x).ToList();
+        }
+
+        /// <summary>
+        /// Порядковый номер секции
+        /// </summary>
+        public int Pos;
     }
 
     public class Document : BaseNode
@@ -26,23 +115,64 @@ namespace TDV.Docx
         {
             get { return (Body)childNodes.Where(x => x is Body).FirstOrDefault(); }
         }
-        private ArchFile file;
-        private XmlDocument xmlDoc;
-        public Document(DocxDocument doc) : base("w:documnent")
+
+        public void UpdateSections()
         {
-            docxDocument = doc;
+            _sections = new List<Section>();
+            int sectNum = 0;
+            Section s = new Section(sectNum);
+            foreach (Node n in body.childNodes)
+            {
+                s.childNodes.Add(n);
+                //n.Section = s;
+                if (n is Paragraph && n.FindChild<PProp>()?.FindChild<SectProp>() != null)
+                {
+                    s.sectProp = n.FindChild<PProp>()?.FindChild<SectProp>();
+                    _sections.Add(s);
+                    sectNum++; 
+                    s = new Section(sectNum);
+                }else if(n is SectProp)
+                {
+                    s.sectProp = (SectProp)n;
+                    _sections.Add(s);
+                    sectNum++;
+                    s = new Section(sectNum);
+                }
+            }
+            if(s.childNodes.Count>0)
+            {
+                _sections.Add(s);
+            }
+        }
+
+        private List<Section> _sections;
+
+        /// <summary>
+        /// Документ может быть разбит на секции, например к разным секциям относятся страницы имеющие разный формат\ориентацию
+        /// Метод UpdateSections() обновляет список секций. при первом обращении выполняется автоматически
+        /// </summary>
+        /// <returns></returns>
+        public List<Section> Sections
+        {
+            get {
+                if (_sections == null)
+                    UpdateSections();
+                return _sections;
+            }
+        }
+        public Document(DocxDocument docx) : base(docx,"w:documnent")
+        {
             qualifiedName = "w:document";
             try
             {
-                file = doc.sourceFolder.FindFile("document.xml");
+                file = docx.sourceFolder.FindFile("document.xml");
 
                 xmlDoc = new XmlDocument();
                 xmlDoc.LoadXml(file.GetSourceString());
-                nsmgr = new XmlNamespaceManager(xmlDoc.NameTable);
-                nsmgr.AddNamespace("w", xmlDoc.DocumentElement.NamespaceURI);
+                FillNamespaces();
                 xmlEl = (XmlElement)xmlDoc.SelectSingleNode("/w:document", nsmgr);
 
-                this.doc = xmlEl.OwnerDocument;
+                this.xmlDoc = xmlEl.OwnerDocument;
             }
             catch (Exception e)
             {
@@ -53,7 +183,7 @@ namespace TDV.Docx
         /// <summary>
         /// Принять все правки
         /// </summary>
-        public void ApplyAllFixes()
+        public override void ApplyAllFixes()
         {
             foreach(Node n in body.childNodes)
             {
@@ -75,7 +205,7 @@ namespace TDV.Docx
         }
 
 
-
+        /*
         public void Apply()
         {
             RemoveEmptyNodes(xmlEl);
@@ -86,7 +216,7 @@ namespace TDV.Docx
                 xw.Flush();
                 file.content = Encoding.UTF8.GetBytes(stringWriter.GetStringBuilder().ToString());
             }
-        }
+        }*/
 
         /// <summary>
         /// удаляет ноды, в которых не заполенны атрибуты (согласно списку)
@@ -131,6 +261,7 @@ namespace TDV.Docx
                 return result;
             }
         }
+        
     }
 
     public class RProp : Node
@@ -162,8 +293,8 @@ namespace TDV.Docx
             var cNode = (XmlElement)xmlEl.SelectSingleNode($"w:{mode}", nsmgr);
             if (cNode == null)
             {
-                cNode = (XmlElement)doc.CreateElement($"w:{mode}", xmlEl.NamespaceURI);
-                cNode.SetAttribute("id", xmlEl.NamespaceURI, (doc.GetLastId() + 1).ToString());
+                cNode = (XmlElement)xmlDoc.CreateElement($"w:{mode}", xmlEl.NamespaceURI);
+                cNode.SetAttribute("id", xmlEl.NamespaceURI, (xmlDoc.GetLastId() + 1).ToString());
                 xmlEl.InsertBefore(cNode, xmlEl.FirstChild);
             }
             cNode.SetAttribute("author", xmlEl.NamespaceURI, author);
@@ -308,13 +439,40 @@ namespace TDV.Docx
                 XmlElement fontNode = (XmlElement)xmlEl.SelectSingleNode("w:rFonts", nsmgr);
                 if (fontNode == null)
                 {
-                    fontNode = doc.CreateElement("w", "rFonts", doc.DocumentElement.NamespaceURI);
+                    fontNode = xmlDoc.CreateElement("w", "rFonts", xmlDoc.DocumentElement.NamespaceURI);
                     xmlEl.AppendChild(fontNode);
                 }
                 //var attributes = xmlEl.SelectSingleNode("w:rFonts", nsmgr).Attributes;
                 fontNode.SetAttribute("ascii", xmlEl.NamespaceURI, value);
                 fontNode.SetAttribute("hAnsi", xmlEl.NamespaceURI, value);
                 fontNode.SetAttribute("cs", xmlEl.NamespaceURI, value);
+            }
+
+        }
+
+        /// <summary>
+        /// без проверки правописания (не проверять орфографию и грамматику)
+        /// </summary>
+        public bool NoProof
+        {
+            get
+            {
+                bool result = childNodes.Where(x => x.xmlEl.Name == "noProof").Any();
+                return result;
+            }
+            set
+            {
+                if (value)
+                    if (!childNodes.Where(x => x.xmlEl.Name == "noProof").Any())
+                    {
+                        xmlEl.AppendChild(xmlDoc.CreateElement("w:noProof", xmlDoc.DocumentElement.NamespaceURI));
+                    }
+                    else
+                    {
+                        XmlElement forDel = childNodes.Where(x => x.xmlEl.Name == "noProof").FirstOrDefault()?.xmlEl;
+                        if (forDel != null)
+                            xmlDoc.RemoveChild(forDel);
+                    }
             }
         }
 
@@ -376,12 +534,12 @@ namespace TDV.Docx
                 XmlElement szCsEl = (XmlElement)xmlEl.SelectSingleNode("w:szCs", nsmgr);
                 if (szEl == null)
                 {
-                    szEl = doc.CreateElement("w", "sz", xmlEl.NamespaceURI);
+                    szEl = xmlDoc.CreateElement("w", "sz", xmlEl.NamespaceURI);
                     xmlEl.AppendChild(szEl);
                 }
                 if (szCsEl == null)
                 {
-                    szCsEl = doc.CreateElement("w", "szCs", xmlEl.NamespaceURI);
+                    szCsEl = xmlDoc.CreateElement("w", "szCs", xmlEl.NamespaceURI);
                     xmlEl.AppendChild(szCsEl);
                 }
                 szEl.SetAttribute("val", xmlEl.NamespaceURI, (value * 2).ToString());
@@ -411,7 +569,7 @@ namespace TDV.Docx
                     xmlEl.RemoveChild(bNode);
                 if (value == true && bNode == null)
                 {
-                    bNode = doc.CreateElement("w", "b", xmlEl.NamespaceURI);
+                    bNode = xmlDoc.CreateElement("w", "b", xmlEl.NamespaceURI);
                     xmlEl.AppendChild(bNode);
                 }
             }
@@ -442,7 +600,7 @@ namespace TDV.Docx
 
                 if (value == true && iNode == null)
                 {
-                    iNode = doc.CreateElement("w", "i", xmlEl.NamespaceURI);
+                    iNode = xmlDoc.CreateElement("w", "i", xmlEl.NamespaceURI);
                     xmlEl.AppendChild(iNode);
                 }
             }
@@ -476,7 +634,7 @@ namespace TDV.Docx
 
                 if (value == true && n == null)
                 {
-                    n = doc.CreateElement("w", "strike", xmlEl.NamespaceURI);
+                    n = xmlDoc.CreateElement("w", "strike", xmlEl.NamespaceURI);
                     xmlEl.AppendChild(n);
                 }
             }
@@ -517,7 +675,7 @@ namespace TDV.Docx
                 if (value != LINE_TYPE.UNKNOWN)
                 {
                     if (n == null)
-                        n = doc.CreateElement("w", "u", xmlEl.NamespaceURI);
+                        n = xmlDoc.CreateElement("w", "u", xmlEl.NamespaceURI);
                     
                     n.SetAttribute("val", xmlEl.NamespaceURI, value.ToString().ToLower());
                     xmlEl.AppendChild(n);
@@ -550,7 +708,7 @@ namespace TDV.Docx
 
                 
                 if (n == null)
-                    n = doc.CreateElement("w", "highlight", xmlEl.NamespaceURI);
+                    n = xmlDoc.CreateElement("w", "highlight", xmlEl.NamespaceURI);
 
                 n.SetAttribute("val", xmlEl.NamespaceURI, string.IsNullOrEmpty(value) ? "auto" : value);
                 xmlEl.AppendChild(n);
@@ -583,19 +741,36 @@ namespace TDV.Docx
                     xmlEl.RemoveChild(n);
 
                 if (n == null)
-                    n = doc.CreateElement("w", "color", xmlEl.NamespaceURI);
+                    n = xmlDoc.CreateElement("w", "color", xmlEl.NamespaceURI);
 
                 n.SetAttribute("val", xmlEl.NamespaceURI, string.IsNullOrEmpty(value)?"auto":value);
                 xmlEl.AppendChild(n);
             }
         }
     }
+    public class Highlight : Node
+    {
+        public Highlight() : base("w:highlight") { }
+        public Highlight(Node parent) : base(parent, "w:highlight") { }
+        public Highlight(XmlElement xmlElement, Node parent) : base(xmlElement, parent, "w:highlight") { }
+        public string Value
+        {
+            get
+            {
+                return GetAttribute("w:val");
+            }
+            set
+            {
+                SetAttribute("w:val", value);
+            }
+        }
+    }
 
-    /// <summary>
-    /// Отсупы
-    /// значения указывать в сантиметрах
-    /// </summary>
-    public class Ind : Node
+        /// <summary>
+        /// Отсупы
+        /// значения указывать в сантиметрах
+        /// </summary>
+        public class Ind : Node
     {
         public Ind() : base("w:ind") { }
         public Ind(Node parent) : base(parent, "w:ind") { }
@@ -970,69 +1145,27 @@ namespace TDV.Docx
             }
         }
 
-        public new HORIZONTAL_ALIGN HorizontalAlign
+        public HORIZONTAL_ALIGN HorizontalAlign
         {
             get
             {
-                var alignNode = xmlEl.SelectSingleNode("w:jc", nsmgr);
-                if (alignNode != null )
-                {
-                    var attributes = alignNode.Attributes;
-                    switch (((XmlElement)alignNode).GetAttribute("w:val"))
-                    {
-                        case "left":
-                            return HORIZONTAL_ALIGN.LEFT;
-                        case "center":
-                            return HORIZONTAL_ALIGN.CENTER;
-                        case "rigth":
-                            return HORIZONTAL_ALIGN.RIGHT;
-                        case "both":
-                            return HORIZONTAL_ALIGN.BOTH;
-                        default:
-                            return HORIZONTAL_ALIGN.NONE;
-                            break;
-                    }
-                }
-                return HORIZONTAL_ALIGN.NONE;
+                Jc jc = FindChild<Jc>();
+                if (jc == null)
+                    return HORIZONTAL_ALIGN.NONE;
+                return jc.Value;
             }
             set
             {
-                XmlElement n = (XmlElement)xmlEl.SelectSingleNode("w:jc", nsmgr);
-                if (n != null && value == HORIZONTAL_ALIGN.NONE)
-                {
-                    xmlEl.RemoveChild(n);
-                }
-
-                if (value != HORIZONTAL_ALIGN.NONE)
-                {
-                    if (n == null)
-                    {
-                        n = doc.CreateElement("w:jc", xmlEl.NamespaceURI);
-                        xmlEl.AppendChild(n);
-                    }
-
-                    switch (value)
-                    {
-                        case HORIZONTAL_ALIGN.LEFT:
-                            n.SetAttribute("val", xmlEl.NamespaceURI, "left");
-                            break;
-                        case HORIZONTAL_ALIGN.CENTER:
-                            n.SetAttribute("val", xmlEl.NamespaceURI, "center");
-                            break;
-                        case HORIZONTAL_ALIGN.RIGHT:
-                            n.SetAttribute("val", xmlEl.NamespaceURI, "right");
-                            break;
-                        case HORIZONTAL_ALIGN.BOTH:
-                            n.SetAttribute("val", xmlEl.NamespaceURI, "both");
-                            break;
-                        default:
-                            break;
-                    }
-                }
+                Jc jc = FindChildOrCreate<Jc>();
+                if (value == HORIZONTAL_ALIGN.NONE)
+                    jc.Delete();
+                else
+                    jc.Value = value;
+              
             }
         }
 
-        public new bool IsBold
+        public bool IsBold
         {
             get
             {
@@ -1046,7 +1179,7 @@ namespace TDV.Docx
             }
         }
 
-        public new bool IsItalic
+        public bool IsItalic
         {
             get
             {
@@ -1061,7 +1194,67 @@ namespace TDV.Docx
         }
     }
 
-    public class R : Node
+    /// <summary>
+    /// Горизонтальное выравнивание параграафа
+    /// </summary>
+    public class Jc : Node
+    {
+        public Jc() : base("w:jc") { }
+        public Jc(XmlElement xmlElement, Node parent) : base(xmlElement, parent, "w:jc")        { }
+
+        public HORIZONTAL_ALIGN Value
+        {
+            get
+            {
+                switch (xmlEl.GetAttribute("w:val"))
+                {
+                    case "left":
+                        return HORIZONTAL_ALIGN.LEFT;
+                    case "center":
+                        return HORIZONTAL_ALIGN.CENTER;
+                    case "right":
+                        return HORIZONTAL_ALIGN.RIGHT;
+                    case "both":
+                        return HORIZONTAL_ALIGN.BOTH;
+                    default:
+                        return HORIZONTAL_ALIGN.NONE;
+                }
+            }
+            set
+            {
+                switch (value)
+                {
+                    case HORIZONTAL_ALIGN.LEFT:
+                        xmlEl.SetAttribute("val", xmlEl.NamespaceURI, "left");
+                        break;
+                    case HORIZONTAL_ALIGN.CENTER:
+                        xmlEl.SetAttribute("val", xmlEl.NamespaceURI, "center");
+                        break;
+                    case HORIZONTAL_ALIGN.RIGHT:
+                        xmlEl.SetAttribute("val", xmlEl.NamespaceURI, "right");
+                        break;
+                    case HORIZONTAL_ALIGN.BOTH:
+                        xmlEl.SetAttribute("val", xmlEl.NamespaceURI, "both");
+                        break;
+                    case HORIZONTAL_ALIGN.NONE:
+                        Delete();
+                        break;
+                    default:
+                        break;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Синоним для Value
+        /// </summary>
+        public HORIZONTAL_ALIGN HorizontalAlign
+        {
+            get { return Value; }
+            set { Value = value; }
+        }
+    }
+        public class R : Node
     {
         public R() : base("w:r") { }
         public R(Node parent) : base(parent, "w:r") { }
@@ -1090,7 +1283,7 @@ namespace TDV.Docx
             if (delNode == null)
                 delNode = parent.NewNodeLast<Del>();
             delNode.Author = author;
-            XmlElement del = doc.CreateElement("w","delText", xmlEl.NamespaceURI);
+            XmlElement del = xmlDoc.CreateElement("w","delText", xmlEl.NamespaceURI);
             del.InnerText = Text;
             xmlEl.AppendChild(del);
             XmlElement tForDel = (XmlElement)xmlEl.SelectSingleNode("w:t", nsmgr);
@@ -1131,39 +1324,29 @@ namespace TDV.Docx
             }
             set
             {
-                T tNode = (T)childNodes.Where(x => x is T).FirstOrDefault();
-                if (tNode == null)
-                    tNode = NewNodeLast<T>();
-                tNode.xmlEl.InnerText = value;
+                t.xmlEl.InnerText = value;
+            }
+        }
+
+        public T t
+        {
+            get
+            {
+                return FindChildOrCreate<T>();
             }
         }
 
         public override void InitXmlElement()
         {
             base.InitXmlElement();
-            //добавить rPr
-            bool rPrAppended = false;
-            if (parent != null && parent is Paragraph && ((Paragraph)parent).pPr != null)
-            {
-                RProp rProp = ((Paragraph)parent).pPr.rPr;
-                if (rProp != null)
-                {
-                    rPrAppended = true;
-                    xmlEl.AppendChild(rProp.CopyXmlElement());
-                }
-            }
-            if (!rPrAppended)
-                NewNodeFirst<RProp>();
-            //доавбить t
-            NewNodeLast<T>();
         }
 
-        public new bool IsBold
+        public bool IsBold
         {
             get {return rPr.IsBold;}
         }
 
-        public new bool IsItalic
+        public bool IsItalic
         {
             get { return rPr.IsItalic; }
         }
@@ -1184,9 +1367,27 @@ namespace TDV.Docx
             set
             {
                 if (xmlEl != null)
-                    xmlEl.Value = value;
+                    xmlEl.InnerText = value;
             }
         }
+    }
+
+    /// <summary>
+    /// Контейнер для хранения подсвеченного текста
+    /// </summary>
+    public class HighlightText
+    {
+        public HighlightText(Paragraph parentP, int pos, string text="",string color=null)
+        {
+            Parent = parentP;
+            this.Text = text;
+            this.Pos = pos;
+            this.Color = color;
+        }
+        public readonly Paragraph Parent;
+        public string Text;
+        public int Pos;
+        public string Color;
     }
 
     public class Paragraph : Node
@@ -1194,6 +1395,22 @@ namespace TDV.Docx
         public Paragraph() : base("w:p") { }
         public Paragraph(XmlElement xmlElement, Node parent) : base(xmlElement, parent, "w:p")
         { }
+
+        public Size Height
+        {
+            get
+            {
+                if (Section?.sectProp?.WorkspaceWidth == null)
+                    return null;
+
+                //вычислить количество полных строк
+
+                //вычислить высоту каждой из строк
+
+                //перемножить
+                throw new NotImplementedException();
+            }
+        }
         public override string ToString()
         {
             string result = $"";
@@ -1207,7 +1424,37 @@ namespace TDV.Docx
             return result;
         }
 
-        public void ApplyAllFixes()
+        public List<HighlightText> GetHighiltText()
+        {
+            List<HighlightText> result = new List<HighlightText>();
+            int pos = 0;
+            HighlightText highlightText = new HighlightText(this, pos);
+            for(int rIndex=0;rIndex<rNodes.Count();rIndex++)
+            {
+                R r = rNodes[rIndex];
+                Highlight currHighlight = r.FindChild<RProp>()?.FindChild<Highlight>();
+
+                if(currHighlight != null)
+                {
+                    if (highlightText.Color == null)
+                        highlightText.Color = currHighlight.Value;
+                    //если подсветка следующей ноды такая же, как у текузей - зааппендить текст. иначе - доавбить в результат и создать новый HighlightText
+                    if (rIndex + 1 <= rNodes.Count() - 1 && rNodes[rIndex+1].FindChild<RProp>()?.FindChild<Highlight>()?.Value==currHighlight.Value)
+                    {
+                        highlightText.Text += r.Text;
+                    }else
+                    {
+                        highlightText.Text += r.Text;
+                        result.Add(highlightText);
+                        pos++;
+                        highlightText = new HighlightText(this, pos);
+                    }
+                }
+            }
+            return result;
+        }
+
+        public override void ApplyAllFixes()
         {
             //удалить Del ноды
             List<Del> delList = FindChilds<Del>();
@@ -1288,7 +1535,6 @@ namespace TDV.Docx
                 }
                 return result;
             }
-
         }
 
         public int DrawingCount()
@@ -1379,7 +1625,6 @@ namespace TDV.Docx
         {
             get
             {
-
                 bool result = true;
                 if (rNodes.Count == 0)
                     return false;
@@ -1415,24 +1660,29 @@ namespace TDV.Docx
         {
             get
             {
-                HORIZONTAL_ALIGN result = HORIZONTAL_ALIGN.NONE;
-
-                
-                PProp pPropNode = (PProp)this.childNodes.Where(x => x is PProp).FirstOrDefault();
+                PProp pPropNode = FindChild<PProp>();
                 if (pPropNode != null)
                 {
-                    result = pPropNode.HorizontalAlign;
+                    return pPropNode.HorizontalAlign;
                 }
-               
-
-                return result;
+                return HORIZONTAL_ALIGN.NONE;
             }
         }
     }
 
     public class PageMargin
     {
-        public PageMargin(float top=-1, float right = -1, float bottom = -1, float left = -1, float footer = -1, float header = -1, float gutter = -1)
+        public PageMargin(double top , double right , double bottom , double left , double footer , double header , double gutter)
+        {
+            Top = new Size(top);
+            Right =  new Size(right);
+            Left =   new Size(left);
+            Bottom = new Size(bottom);
+            Footer = new Size(footer);
+            Header = new Size(header);
+            Gutter = new Size(gutter);
+        }
+        public PageMargin(Size top=null, Size right = null, Size bottom = null, Size left = null, Size footer = null, Size header = null, Size gutter = null)
         {
             Top = top;
             Right = right;
@@ -1441,37 +1691,35 @@ namespace TDV.Docx
             Footer = footer;
             Header = header;
             Gutter = gutter;
-}
+        }
         /// <summary>
         /// Верхняя граница. Значение в сантиметрах.
         /// </summary>
-        public float Top;
+        public Size Top;
         /// <summary>
         /// Правая граница. Значение в сантиметрах.
         /// </summary>
-        public float Right;
+        public Size Right;
         /// <summary>
         /// Нижняя граница. Значение в сантиметрах.
         /// </summary>
-        public float Bottom;
-
+        public Size Bottom;
         /// <summary>
         /// Левая граница. Значение в сантиметрах.
         /// </summary>
-        public float Left;
-
+        public Size Left;
         /// <summary>
         /// расстояние от верхнего края страницы до верхнего края верхнего колонтитула
         /// </summary>
-        public float Header;
+        public Size Header;
         /// <summary>
         /// расстояние от нижнего края страницы до нижнего края нижнего колонтитула
         /// </summary>
-        public float Footer;
+        public Size Footer;
         /// <summary>
         /// Дополнительный отступ страницы (для переплета)
         /// </summary>
-        public float Gutter;
+        public Size Gutter;
     }
 
     public class PageMarginNode : Node
@@ -1481,168 +1729,434 @@ namespace TDV.Docx
         public PageMarginNode(XmlElement xmlElement, Node parent) : base(xmlElement, parent, "w:pgMar") { }
 
         /// <summary>
-        /// Верхняя граница. Значение в сантиметрах.
+        /// Верхняя граница
         /// </summary>
-        public float top
+        public Size Top
         {
             get
             {
-                if (xmlEl.Attributes["w:top"] != null)
-                    return float.Parse(xmlEl.Attributes["w:top"].Value) / 567;
-                return 0;
+                return new Size(Int32.Parse(GetAttribute("w:top")));
             }
             set
             {
-                if (value != -1)
-                    xmlEl.SetAttribute("top", xmlEl.NamespaceURI, ((int)(value * 567)).ToString());
+                SetAttribute("w:top",value.ValuePoints.ToString());
             }
         }
 
         /// <summary>
-        /// Правая граница. Значение в сантиметрах.
+        /// Правая граница
         /// </summary>
-        public float right
+        public Size Right
         {
             get
             {
-                if (xmlEl.Attributes["w:right"] != null)
-                    return float.Parse(xmlEl.Attributes["w:right"].Value) / 567;
-                return 0;
+                return new Size(Int32.Parse(GetAttribute("w:right")));
             }
             set
             {
-                if (value != -1)
-                    xmlEl.SetAttribute("right", xmlEl.NamespaceURI, ((int)(value * 567)).ToString());
+                SetAttribute("w:right", value.ValuePoints.ToString());
             }
         }
 
         /// <summary>
-        /// Нижняя граница. Значение в сантиметрах.
+        /// Нижняя граница
         /// </summary>
-        public float bottom
+        public Size Bottom
         {
             get
             {
-                if (xmlEl.Attributes["w:bottom"] != null)
-                    return float.Parse(xmlEl.Attributes["w:bottom"].Value) / 567;
-                return 0;
+                return new Size(Int32.Parse(GetAttribute("w:bottom")));
             }
             set
             {
-                if (value != -1)
-                    xmlEl.SetAttribute("bottom", xmlEl.NamespaceURI, ((int)(value * 567)).ToString());
+                SetAttribute("w:bottom", value.ValuePoints.ToString());
             }
         }
 
         /// <summary>
-        /// Левая граница. Значение в сантиметрах.
+        /// Левая граница
         /// </summary>
-        public float left
+        public Size Left
         {
             get
             {
-                if (xmlEl.Attributes["w:left"] != null)
-                    return float.Parse(xmlEl.Attributes["w:left"].Value) / 567;
-                return 0;
+                return new Size(Int32.Parse(GetAttribute("w:left")));
             }
             set
             {
-                if (value != -1)
-                    xmlEl.SetAttribute("left", xmlEl.NamespaceURI, ((int)(value * 567)).ToString());
+                SetAttribute("w:left", value.ValuePoints.ToString());
             }
         }
-
 
         /// <summary>
         /// расстояние от верхнего края страницы до верхнего края верхнего колонтитула
         /// </summary>
-        public float header
+        public Size Header
         {
             get
             {
-                if (xmlEl.Attributes["w:header"] != null)
-                    return float.Parse(xmlEl.Attributes["w:header"].Value) / 567;
-                return 0;
+                try { 
+                    return new Size(Int32.Parse(GetAttribute("w:header")));
+                }catch
+                {
+                    return new Size(0);
+                }
             }
             set
             {
-                if (value != -1)
-                    xmlEl.SetAttribute("header", xmlEl.NamespaceURI, ((int)(value * 567)).ToString());
+                SetAttribute("w:header", value.ValuePoints.ToString());
             }
         }
 
         /// <summary>
         /// расстояние от нижнего края страницы до нижнего края нижнего колонтитула
         /// </summary>
-        public float footer
+        public Size Footer
         {
             get
             {
-                if (xmlEl.Attributes["w:footer"] != null)
-                    return float.Parse(xmlEl.Attributes["w:footer"].Value) / 567;
-                return 0;
+                try { 
+                    return new Size(Int32.Parse(GetAttribute("w:footer")));
+                }catch
+                {
+                    return new Size(0);
+                }
             }
             set
             {
-                if (value != -1)
-                    xmlEl.SetAttribute("footer", xmlEl.NamespaceURI, ((int)(value * 567)).ToString());
+                SetAttribute("w:footer", value.ValuePoints.ToString());
             }
         }
         /// <summary>
         /// Дополнительный отступ страницы (для переплета)
         /// </summary>
-        public float gutter
+        public Size Gutter
         {
             get
             {
-                if (xmlEl.Attributes["w:gutter"] != null)
-                    return float.Parse(xmlEl.Attributes["w:gutter"].Value) / 567;
-                return 0;
+                return new Size(Int32.Parse(GetAttribute("w:gutter")));
             }
             set
             {
-                if (value != -1)
-                    xmlEl.SetAttribute("gutter", xmlEl.NamespaceURI, ((int)(value * 567)).ToString());
+                SetAttribute("w:gutter", value.ValuePoints.ToString());
             }
         }
 
-
     }
 
-    public class SectProp : Node
+    public class Size : IEquatable<Size>
+    {
+        internal int _value;
+        #region operartors
+        public static Size operator -(Size a, Size b)
+        {
+            return new Size(a.ValuePoints - b.ValuePoints);
+        }
+        public static Size operator -(Size a, int points)
+        {
+            return new Size(a.ValuePoints - points);
+        }
+        public static Size operator -(Size a, double cm)
+        {
+            return new Size(a.ValuePoints - new Size(cm).ValuePoints);
+        }
+        public static Size operator -(int points, Size b)
+        {
+            return new Size(points - b.ValuePoints);
+        }
+        public static Size operator -(double cm, Size b)
+        {
+            return new Size(new Size(cm).ValuePoints-b.ValuePoints);
+        }
+
+        public static Size operator +(Size a, Size b)
+        {
+            return new Size(a.ValuePoints + b.ValuePoints);
+        }
+        public static Size operator +(Size a, int points)
+        {
+            return new Size(a.ValuePoints + points);
+        }
+        public static Size operator +(int points, Size b)
+        {
+            return new Size(b.ValuePoints + points);
+        }
+        public static Size operator +(Size a, double cm)
+        {
+            return new Size(a.ValuePoints + new Size(cm).ValuePoints);
+        }
+        public static Size operator +(double cm, Size b)
+        {
+            return new Size(b.ValuePoints + new Size(cm).ValuePoints);
+        }
+
+        public static bool operator <(Size a, Size b)
+        {
+            return a._value < b._value;
+        }
+        public static bool operator <=(Size a, Size b)
+        {
+            return a._value <= b._value;
+        }
+        public static bool operator >(Size a, Size b)
+        {
+            return a._value > b._value;
+        }
+        public static bool operator >=(Size a, Size b)
+        {
+            return a._value >= b._value;
+        }
+
+        public static bool operator ==(Size a, Size b)
+        {
+            if (a is null)
+            {
+                if (b is null)
+                    return true;
+                return false;
+            }
+            return a.Equals(b);
+        }
+        public static bool operator !=(Size a, Size b)
+        {
+            return !(a==b);
+        }
+        #endregion
+        public Size parentSize;
+        public TABLE_WIDTH_TYPE SizeType;
+
+        public int Value
+        {
+            get
+            {
+                return _value;
+            }
+        }
+
+        public int PtcValue
+        {
+            get
+            {
+                if (SizeType != TABLE_WIDTH_TYPE.PCT)
+                    throw new Exception("Тип значения не PTC");
+                return _value;
+            }
+        }
+        public Size(int valuePoints)
+        {
+            _value = valuePoints;
+            SizeType = TABLE_WIDTH_TYPE.DXA;
+        }
+
+        public Size(int value,TABLE_WIDTH_TYPE type,Size parentSize=null)
+        {
+            this.parentSize = parentSize;
+            SizeType = type;            
+            switch(type)
+            {
+                case TABLE_WIDTH_TYPE.PCT:
+                    if (value < 0 || value > 5000)
+                        throw new Exception("Значение должно быть в пределах от 0 до 5000 для типа PTC");
+                    _value = value;
+                    break;
+                case TABLE_WIDTH_TYPE.AUTO:
+                case TABLE_WIDTH_TYPE.DXA:
+                    _value = value;
+                    break;
+                case TABLE_WIDTH_TYPE.NIL:
+                    _value = 0;
+                    break;
+                default:
+                    throw new NotImplementedException();            
+            }
+                
+        }
+        
+
+        public Size(double valueCM)
+        {
+            this.ValueCM = valueCM;
+            SizeType = TABLE_WIDTH_TYPE.DXA;
+        }
+        public int ValuePoints
+        {
+            get
+            {
+                switch (SizeType)
+                {
+                    case TABLE_WIDTH_TYPE.AUTO:
+                    case TABLE_WIDTH_TYPE.DXA:
+                        return _value;
+                    case TABLE_WIDTH_TYPE.PCT:
+                        if (parentSize == null)
+                            throw new Exception("Для вычисления необходимо указать parentSize");
+                        double percents = _value / 50 / 100;
+                        return (int)(percents * parentSize._value);
+                    case TABLE_WIDTH_TYPE.NIL:
+                        return 0;
+                    default:
+                        throw new NotImplementedException();
+                }
+            }
+            set
+            {
+                _value = value;
+            }
+        }
+        public double ValueCM
+        {
+            get
+            {
+                return Math.Round(ValuePoints / 567d, 1);
+            }
+            set
+            {
+                _value = (int)value*567;
+            }
+        }
+
+        public int CompareTo(Size other)
+        {
+            if (other is null)
+                return -1;
+            return this._value - other._value;
+        }
+
+        public bool Equals(Size other)
+        {
+            if (other is null)
+                return false;
+            return this._value==other._value;
+        }
+
+        public override string ToString()
+        {
+            return $"Points: {ValuePoints}, CM: {ValueCM}";
+        }
+    }
+
+    public class PgNumType : Node
+    {
+        public PgNumType() : base("w:pgNumType") { }
+        public PgNumType(Node parent) : base(parent, "w:pgNumType") { }
+        public PgNumType(XmlElement xmlElement, Node parent) : base(xmlElement, parent, "w:pgNumType") { }
+        public int Start
+        {
+            get
+            {
+                try {
+                    return Int32.Parse(GetAttribute("w:start"));
+                }
+                catch
+                {
+                    return 1;
+                }
+            }
+            set
+            {
+                if (value >= 1)
+                    Delete();
+                else
+                    SetAttribute("w:start", value.ToString());
+            }
+        }
+    }
+        public class SectProp : Node
     {
         public SectProp() : base("w:sectPr") { }
         public SectProp(Node parent) : base(parent, "w:sectPr") { }
         public SectProp(XmlElement xmlElement, Node parent) : base(xmlElement, parent, "w:sectPr") { }
 
-        public PageMarginNode pgMar
+        public PageMarginNode PgMar
         {
             get
             {
-                PageMarginNode result = childNodes.Where(x => x is PageMarginNode).Select(x => (PageMarginNode)x).FirstOrDefault();
-                if (result == null)
-                    result = new PageMarginNode(this);
-                return result;
+                return FindChildOrCreate<PageMarginNode>();
+            }
+        }
+        /// <summary>
+        /// начало нумерции страниц
+        /// </summary>
+        public int PgNumStart
+        {
+            get
+            {
+                return PgNumType?.Start??1;
+            }
+            set
+            {
+                if (value <= 1)
+                    PgNumType?.RemoveAttribute("w:start");
+                else
+                { 
+                    FindChildOrCreate<PgNumType>().Start = value;
+                }
             }
         }
 
-        public FootnotePr footnotePr
+
+        public PgNumType PgNumType
         {
             get
             {
-                FootnotePr result = childNodes.Where(x => x is FootnotePr).Select(x => (FootnotePr)x).FirstOrDefault();
-                if (result == null)
-                    result = new FootnotePr(this);
-                return result;
+                return FindChild<PgNumType>();
+            }
+        }
+
+        /// <summary>
+        /// Ширина рабочей области(ширина страницы - отступы)
+        /// </summary>
+        public Size WorkspaceWidth
+        {
+            get
+            {
+                return PgSz.Width - PgMar.Right-PgMar.Left-PgMar.Gutter;
+            }
+        }
+        public Size WorkspaceHeigth
+        {
+            get
+            {
+                return PgSz.Heigth - PgMar.Top - PgMar.Bottom;
+            }
+        }
+
+
+        /// <summary>
+        /// формат сносок
+        /// </summary>
+        public FootnotePr FootnotePr
+        {
+            get
+            {
+                return FindChildOrCreate<FootnotePr>(INSERT_POS.FIRST);
             }
         }
 
         public void CompareFooter(NUM_FMT fmt, string author = "TDV")
         {
-            if (footnotePr.numFmt.Value != fmt)
+            if (FootnotePr.numFmt.Value != fmt)
             {
                 CreateChangeNode("w:sectPrChange",xmlEl, author);
-                footnotePr.numFmt.Value = fmt;
+                FootnotePr.numFmt.Value = fmt;
+            }
+        }
+
+        public void ComparePageStart(int start,string author="TDV")
+        {
+            if (PgNumStart != start)
+            {
+                PgNumStart = start;
+            }
+        }
+
+
+        public void CompareIsTitlePg(bool value, string author = "TDV")
+        {
+            if (IsTitlePg != value)
+            {
+                CreateChangeNode("w:sectPrChange", xmlEl, author);
+                IsTitlePg=value;
             }
         }
 
@@ -1662,22 +2176,30 @@ namespace TDV.Docx
         /// <param name="footer"></param>
         /// <param name="gutter"></param>
         /// <param name="author"></param>
-        public void ComparePageMargin(float top = -1, float bottom = -1, float left = -1, float right = -1, float header = -1, float footer = -1, float gutter = -1, string author = "TDV")
+        public void ComparePageMargin(Size top = null, Size bottom = null, Size left = null, Size right = null, Size header = null, Size footer = null, Size gutter = null, string author = "TDV")
         {
-            if (pgMar.top != top || pgMar.bottom != bottom || pgMar.left != left || pgMar.right != right || pgMar.header != header || pgMar.footer != footer || pgMar.gutter != gutter)
+
+            if (PgMar.Top != top || PgMar.Bottom != bottom || PgMar.Left != left || PgMar.Right != right || PgMar.Header != header || PgMar.Footer != footer || PgMar.Gutter != gutter)
             {
                 CreateChangeNode("w:sectPrChange", xmlEl, author);
-                pgMar.top = top;
-                pgMar.bottom = bottom;
-                pgMar.left = left;
-                pgMar.right = right;
-                pgMar.header = header;
-                pgMar.footer = footer;
-                pgMar.gutter = gutter;
+                if(top!=null)
+                    PgMar.Top = top;
+                if(bottom!=null)
+                    PgMar.Bottom = bottom;
+                if(left!=null)
+                    PgMar.Left = left;
+                if (right != null)
+                    PgMar.Right = right;
+                if(header!=null)
+                    PgMar.Header = header;
+                if (footer != null)
+                    PgMar.Footer = footer;
+                if (gutter != null)
+                    PgMar.Gutter = gutter;
             }
         }
 
-        public Header GetHeader(REFERENCE_TYPE type)
+        public Header GetHeader(REFERENCE_TYPE type, bool createIfNotExist = false)
         {
             string stringType = "unknown";
             switch (type)
@@ -1694,14 +2216,279 @@ namespace TDV.Docx
             }
 
             XmlElement header = (XmlElement)xmlEl.SelectSingleNode("w:headerReference[@w:type=\"" + stringType + "\"] ", nsmgr);
-            if (header != null)
+            /*if (header != null)
             {
                 string id=header.GetAttribute("r:id");
                 DocxDocument docx = GetDocxDocument();
                 ArchFile headerFile= docx.wordRels.GetFileById(id);
-                return new Header(headerFile);
+                return new Header(docx,headerFile);
             }
             throw new KeyNotFoundException("Не удалось найти файл заголовка");
+            */
+
+
+            DocxDocument docx = GetDocxDocument();
+            if (header != null)
+            {
+                string id = header.GetAttribute("r:id");
+
+                ArchFile footerFile = docx.wordRels.GetFileById(id);
+                return new Header(docx, footerFile, docx.wordRels.GetRelationshipById(id));
+            }
+            else
+            {
+                if (!createIfNotExist)
+                    throw new FileNotFoundException("Не удалось найти файл верхнего колонтитула");
+                int maxHeaderIndex = 0;
+                ArchFolder wordFolder = docx.sourceFolder.GetFolder("word");
+                foreach (ArchFile file in wordFolder.GetFiles())
+                {
+                    if (file.Name.StartsWith("header"))
+                    {
+                        int headerIndex = Int32.Parse(file.Name.Replace("header", "").Replace(".xml", ""));
+                        if (headerIndex > maxHeaderIndex)
+                            maxHeaderIndex = headerIndex;
+                    }
+                }
+                ArchFile newHeaderFile = wordFolder.AddFile($"header{maxHeaderIndex + 1}.xml", new byte[0]);
+                Override ov = docx.contentTypes.GetOverride(newHeaderFile.GetFullPath(), true);
+                ov.ContentType = Override.ContentTypes.HEADER;
+                Relationship newRel = docx.wordRels.NewRelationship(newHeaderFile.Name, RELATIONSIP_TYPE.HEADER);
+                Header newHeader = new Header(docx, newHeaderFile, newRel, create: true);
+                //прописать в document.xml
+                HeaderReference headerReference = docx.document.body.sectProp.GetHeaderReference(type, true);
+                headerReference.Id = newRel.Id;
+
+                return newHeader;
+            }
+        }
+         
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="type"></param>
+        /// <param name="createIfNotExist"> создаст файл футера, если не найдет.пропишет в document.xml.rels. Пропишет в sectProp.</param>
+        /// <returns></returns>
+        public Footer GetFooter(REFERENCE_TYPE type, bool createIfNotExist = false)
+        {
+            string stringType = "unknown";
+            switch (type)
+            {
+                case REFERENCE_TYPE.FIRST:
+                    stringType = "first";
+                    break;
+                case REFERENCE_TYPE.EVEN:
+                    stringType = "even";
+                    break;
+                case REFERENCE_TYPE.DEFAULT:
+                    stringType = "default";
+                    break;
+            }
+
+
+            XmlElement footer = (XmlElement)xmlEl.SelectSingleNode("w:footerReference[@w:type=\"" + stringType + "\"] ", nsmgr);
+            DocxDocument docx = GetDocxDocument();
+            if (footer != null)
+            {
+                string id = footer.GetAttribute("r:id");
+                
+                ArchFile footerFile = docx.wordRels.GetFileById(id);
+                return new Footer(docx,footerFile,docx.wordRels.GetRelationshipById(id));
+            }else
+            {
+                if(!createIfNotExist)
+                    throw new FileNotFoundException("Не удалось найти файл нижнего колонтитула");
+                int maxFooterIndex = 0;
+                ArchFolder wordFolder = docx.sourceFolder.GetFolder("word");
+                foreach (ArchFile file in wordFolder.GetFiles())
+                {
+                    if(file.Name.StartsWith("footer"))
+                    {
+                        int footerIndex = Int32.Parse(file.Name.Replace("footer", "").Replace(".xml", ""));
+                        if (footerIndex > maxFooterIndex)
+                            maxFooterIndex = footerIndex;
+                    }
+                }
+                ArchFile newFooterFile = wordFolder.AddFile($"footer{maxFooterIndex + 1}.xml", new byte[0]);
+                Override ov= docx.contentTypes.GetOverride(newFooterFile.GetFullPath(), true);
+                ov.ContentType = Override.ContentTypes.FOOTER;
+                Relationship newRel= docx.wordRels.NewRelationship(newFooterFile.Name, RELATIONSIP_TYPE.FOOTER);
+                Footer newFooter = new Footer(docx,newFooterFile,newRel, create:true);
+                //прописать в document.xml
+                FooterReference footerReference= docx.document.body.sectProp.GetFooterReference(type, true);
+                footerReference.Id = newRel.Id;
+                newFooter.Apply();
+                return newFooter;
+            }
+        }
+
+        public bool IsTitlePg
+        {
+            get
+            {
+                bool result = childNodes.Where(x => x.xmlEl.Name == "titlePg").Any();
+                return result;
+            }
+            set
+            {
+                if (value)
+                    if (!childNodes.Where(x => x.xmlEl.Name == "titlePg").Any())
+                    {
+                        xmlEl.AppendChild(xmlDoc.CreateElement("w:titlePg", xmlDoc.DocumentElement.NamespaceURI));
+                    }
+                    else
+                    {
+                        XmlElement forDel = childNodes.Where(x => x.xmlEl.Name == "titlePg").FirstOrDefault()?.xmlEl;
+                        if (forDel != null)
+                            xmlDoc.RemoveChild(forDel);
+                    }
+            }
+        }
+
+        public FooterReference GetFooterReference(REFERENCE_TYPE type, bool createIfNotExist = false)
+        {
+            foreach (FooterReference r in FindChilds<FooterReference>())
+            {
+                if (r.Type == type)
+                    return r;
+            }
+            if(!createIfNotExist)
+                throw new KeyNotFoundException();
+            FooterReference newFooter = NewNodeFirst<FooterReference>();
+            newFooter.Type = type;
+            return newFooter;
+        }
+        public FooterReference GetFooterReference(string id, bool createIfNotExist = false)
+        {
+            foreach (FooterReference r in FindChilds<FooterReference>())
+            {
+                if (r.Id==id)
+                    return r;
+            }
+            if (!createIfNotExist)
+                throw new KeyNotFoundException();
+            FooterReference newFooter = NewNodeFirst<FooterReference>();
+            newFooter.Id = id;
+            return newFooter;
+        }
+
+        public HeaderReference GetHeaderReference(REFERENCE_TYPE type, bool createIfNotExist = false)
+        {
+            foreach (HeaderReference r in FindChilds<HeaderReference>())
+            {
+                if (r.Type == type)
+                    return r;
+            }
+            if (!createIfNotExist)
+                throw new KeyNotFoundException();
+            HeaderReference newHeader = NewNodeFirst<HeaderReference>();
+            newHeader.Type = type;
+            return newHeader;
+        }
+        public HeaderReference GetHeaderReference(string id, bool createIfNotExist = false)
+        {
+            foreach (HeaderReference r in FindChilds<HeaderReference>())
+            {
+                if (r.Id == id)
+                    return r;
+            }
+            if (!createIfNotExist)
+                throw new KeyNotFoundException();
+            HeaderReference newHeader = NewNodeFirst<HeaderReference>();
+            newHeader.Id = id;
+            return newHeader;
+        }
+
+        public PgSz PgSz
+        {
+            get
+            {
+                return FindChildOrCreate<PgSz>();
+            }
+        }
+    }
+
+
+    public enum PAGE_ORIENTATION { NONE, PORTRAIT,LANSCAPE}
+    /// <summary>
+    /// Размер страницы
+    /// </summary>
+    public class PgSz : Node
+    {
+        public PgSz() : base("w:pgSz") { }
+
+        public PgSz(Node parent) : base(parent, "w:pgSz") { }
+        public PgSz(XmlElement xmlElement, Node parent) : base(xmlElement, parent, "w:pgSz") { }
+
+        public Size Width
+        {
+            get
+            {
+                try
+                {
+                    return new Size(Int32.Parse(GetAttribute("w:w")));
+                }
+                catch
+                {
+                    return new Size(0);
+                }
+            }
+            set
+            {
+                SetAttribute("w:w", value.ValuePoints.ToString());
+            }
+        }
+
+        public Size Heigth
+        {
+            get
+            {
+                try
+                {
+                    return new Size (Int32.Parse(GetAttribute("w:h")));
+                }
+                catch
+                {
+                    return new Size(0);
+                }
+            }
+            set
+            {
+                SetAttribute("w:h", value.ValuePoints.ToString());
+            }
+        }
+
+        public PAGE_ORIENTATION Prientation
+        {
+            get
+            {
+                switch (GetAttribute("w:orient"))
+                {
+                    case "portrait":
+                        return PAGE_ORIENTATION.PORTRAIT;
+                    case "landscape":
+                        return PAGE_ORIENTATION.LANSCAPE;
+                    default:
+                        return PAGE_ORIENTATION.NONE;
+                }
+            }
+            set
+            {
+                switch(value)
+                {
+                    case PAGE_ORIENTATION.LANSCAPE:
+                        SetAttribute("w:orient", "landscape");
+                        break;
+                    case PAGE_ORIENTATION.PORTRAIT:
+                        SetAttribute("w:orient", "portrait");
+                        break;
+                    case PAGE_ORIENTATION.NONE:
+                        RemoveAttribute("w:orient");
+                        break;
+                    default:
+                        throw new NotImplementedException();
+                }
+            }
         }
     }
 
@@ -1841,7 +2628,7 @@ namespace TDV.Docx
             {
                 if (n == null)
                 {
-                    n = doc.CreateElement($"{prefix}:{localName}", doc.DocumentElement.NamespaceURI);
+                    n = xmlDoc.CreateElement($"{prefix}:{localName}", xmlDoc.DocumentElement.NamespaceURI);
                     xmlEl.AppendChild(n);
                 }
                 switch (b.type)
@@ -1984,7 +2771,7 @@ namespace TDV.Docx
         {
             base.InitXmlElement();
             if (string.IsNullOrEmpty(xmlEl.GetAttribute("id", xmlEl.NamespaceURI)))
-                xmlEl.SetAttribute("id", xmlEl.NamespaceURI, (doc.GetLastId() + 1).ToString());
+                xmlEl.SetAttribute("id", xmlEl.NamespaceURI, (xmlDoc.GetLastId() + 1).ToString());
             Author = "TDV";
             xmlEl.SetAttribute("date", xmlEl.NamespaceURI, DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ssZ"));
         }
@@ -2013,7 +2800,7 @@ namespace TDV.Docx
         {
             base.InitXmlElement();
             if (string.IsNullOrEmpty(xmlEl.GetAttribute("id", xmlEl.NamespaceURI)))
-                xmlEl.SetAttribute("id", xmlEl.NamespaceURI, (doc.GetLastId() + 1).ToString());
+                xmlEl.SetAttribute("id", xmlEl.NamespaceURI, (xmlDoc.GetLastId() + 1).ToString());
             Author = "TDV";
             xmlEl.SetAttribute("date", xmlEl.NamespaceURI, DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ssZ"));
         }
