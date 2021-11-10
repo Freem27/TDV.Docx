@@ -9,15 +9,48 @@ namespace TDV.Docx
     public class DocxDocument
     {
         internal ArchFolder sourceFolder;
-        public Document document;
-        public WordRels wordRels;
-        public Styles styles;
-        public FootNotes footNotes;
-        public Numbering numbering;
-        public ContentTypes contentTypes;
+        public Document Document;
+        public WordRels WordRels;
+        public Styles Styles;
+        public FootNotes FootNotes;
+        public Numbering Numbering;
+        public ContentTypes ContentTypes;
+        public Settings Settings;
+        private Comments _comments;
+        public Comments Comments {
+            get
+            {
+                if (_comments == null)
+                    _comments = new Comments(this);
+                return _comments;
+            }
+        }
         public List<BaseNode> FilesForApply;
+        internal Dictionary<string, Header> headers;
+        internal Dictionary<string, Footer> footers;
+
+        public Header GetHeader(string id)
+        {
+            if (!headers.ContainsKey(id))
+            {
+                ArchFile file = WordRels.GetFileById(id);
+                headers.Add(id, new Header(this, file, WordRels.GetRelationshipById(id)));
+            }
+            return headers[id];
+        }
+        public Footer GetFooter(string id)
+        {
+            if (!footers.ContainsKey(id))
+            {
+                ArchFile file = WordRels.GetFileById(id);
+                footers.Add(id, new Footer(this, file, WordRels.GetRelationshipById(id)));
+            }
+            return footers[id];
+        }
         public DocxDocument(Stream stream)
         {
+            headers = new Dictionary<string, Header>();
+            footers = new Dictionary<string, Footer>();
             FilesForApply = new List<BaseNode>();
             sourceFolder = new ArchFolder(null);
             ZipArchive arch = new ZipArchive(stream);
@@ -33,12 +66,13 @@ namespace TDV.Docx
                     }
                 }
             }
-            document = new Document(this);
-            wordRels = new WordRels(this);
-            styles = new Styles(this);
-            footNotes = new FootNotes(this);
-            numbering = new Numbering(this);
-            contentTypes = new ContentTypes(this);
+            Document = new Document(this);
+            WordRels = new WordRels(this);
+            Styles = new Styles(this);
+            FootNotes = new FootNotes(this);
+            Numbering = new Numbering(this);
+            ContentTypes = new ContentTypes(this);
+            Settings = new Settings(this);
         }
 
         public MemoryStream ToStream()
@@ -52,7 +86,7 @@ namespace TDV.Docx
                     var newEntry = arch.CreateEntry(item.Key);
                     using (Stream sw = newEntry.Open())
                     {
-                        sw.Write(item.Value.content, 0, item.Value.content.Length);
+                        sw.Write(item.Value.Content, 0, item.Value.Content.Length);
                     }
                 }
             }
@@ -82,7 +116,7 @@ namespace TDV.Docx
     internal class ArchFolder
     {
         public string Name;
-        public ArchFolder parent;
+        public ArchFolder Parent;
         public List<ArchFile> GetFiles()
         {
             List<ArchFile> result= new List<ArchFile>();
@@ -133,7 +167,7 @@ namespace TDV.Docx
         public ArchFolder(string name, ArchFolder parent = null)
         {
             Name = name;
-            this.parent = parent;
+            this.Parent = parent;
             folders = new Dictionary<string, ArchFolder>();
             files = new Dictionary<string, ArchFile>();
         }
@@ -184,14 +218,14 @@ namespace TDV.Docx
 
     internal class ArchFile
     {
-        public byte[] content;
+        public byte[] Content;
         public string Name;
-        public ArchFolder parent;
+        public ArchFolder Parent;
         public ArchFile(string name, byte[] content, ArchFolder parent = null)
         {
-            this.content = content;
+            this.Content = content;
             this.Name = name;
-            this.parent = parent;
+            this.Parent = parent;
         }
 
         public override string ToString()
@@ -201,24 +235,24 @@ namespace TDV.Docx
 
         public string GetSourceString()
         {
-            return Encoding.UTF8.GetString(content);
+            return Encoding.UTF8.GetString(Content);
         }
 
         public string GetFolderPath()
         {
-            if (parent == null)
+            if (Parent == null)
                 return "";
-            return parent.parent.Name;
+            return Parent.Parent.Name;
         }
 
         public string GetFullPath()
         {
             string result = Name;
-            ArchFolder p = parent;
+            ArchFolder p = Parent;
             while (p != null && p.Name != null)
             {
                 result = $"{p.Name}/{result}";
-                p = p.parent;
+                p = p.Parent;
             }
             return result;
         }

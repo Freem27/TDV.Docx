@@ -10,23 +10,28 @@ namespace TDV.Docx
 {
     public enum RELATIONSIP_TYPE
     {
-        FOOTER, STYLES, ENDNOTES, NUMBERING, CUSTOM_XML, FOOTNOTES, WEB_SETTINGS, THEME, SETTINGS, FONT_TABLE, HEADER
+        FOOTER, STYLES, ENDNOTES, NUMBERING, CUSTOM_XML, FOOTNOTES, WEB_SETTINGS, THEME, SETTINGS, FONT_TABLE, HEADER, HYPERLINK
+    }
+
+    public enum RELATIONSHIP_TARGET_MODE
+    {
+        NONE,EXTERNAL
     }
     public class WordRels:BaseNode
     {
         public WordRels(DocxDocument docx):base(docx)
         {
-            docxDocument = docx;
+            DocxDocument = docx;
             try
             {
                 file = docx.sourceFolder.FindFile("document.xml.rels", @"word/_rels");
 
-                xmlDoc = new XmlDocument();
-                xmlDoc.LoadXml(file.GetSourceString());
+                XmlDoc = new XmlDocument();
+                XmlDoc.LoadXml(file.GetSourceString());
                 //nsmgr = new XmlNamespaceManager(xmlDoc.NameTable);
                 //nsmgr.AddNamespace("Relationships", "http://schemas.openxmlformats.org/package/2006/relationships");
                 FillNamespaces();
-                xmlEl = (XmlElement)xmlDoc.SelectSingleNode(@"/DEFAULT:Relationships", nsmgr);
+                XmlEl = (XmlElement)XmlDoc.SelectSingleNode(@"/DEFAULT:Relationships", Nsmgr);
             }
             catch (Exception e)
             {
@@ -100,7 +105,7 @@ namespace TDV.Docx
             if (filePath.Last() == '/')
                 filePath = filePath.Remove(filePath.Length - 1);
             //удалить имя файла
-            result = docxDocument.sourceFolder.FindFile(fileName, filePath);
+            result = DocxDocument.sourceFolder.FindFile(fileName, filePath);
             if (result == null)
                 throw new FileNotFoundException($"Ну удалось найти файл с id={id}");
             return result;
@@ -116,11 +121,11 @@ namespace TDV.Docx
         {
             get
             {
-                return xmlEl.GetAttribute("Id");
+                return XmlEl.GetAttribute("Id");
             }
             set
             {
-                xmlEl.SetAttribute("Id", value);
+                XmlEl.SetAttribute("Id", value);
             }
         }
 
@@ -128,7 +133,7 @@ namespace TDV.Docx
         {
             get
             {
-                switch (xmlEl.GetAttribute("Type"))
+                switch (XmlEl.GetAttribute("Type"))
                 {
                     case "http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer":
                         return RELATIONSIP_TYPE.FOOTER;
@@ -152,8 +157,10 @@ namespace TDV.Docx
                         return RELATIONSIP_TYPE.FONT_TABLE;
                     case "http://schemas.openxmlformats.org/officeDocument/2006/relationships/header":
                         return RELATIONSIP_TYPE.HEADER;
+                    case "http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink":
+                        return RELATIONSIP_TYPE.HYPERLINK;
                 }
-                throw new Exception($"Неизвестный тип связи {xmlEl.GetAttribute("Type")}");
+                throw new Exception($"Неизвестный тип связи {XmlEl.GetAttribute("Type")}");
             }
             set
             {
@@ -193,10 +200,14 @@ namespace TDV.Docx
                     case RELATIONSIP_TYPE.HEADER:
                         type = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/header";
                         break;
+                    case RELATIONSIP_TYPE.HYPERLINK:
+                        type = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink";
+                        TargetMode = RELATIONSHIP_TARGET_MODE.EXTERNAL;
+                        break;
                     default:
                         throw new Exception($"Неизвестный тип связи {value.ToString()}");
                 }                
-                xmlEl.SetAttribute("Type", type);
+                XmlEl.SetAttribute("Type", type);
             }
         }
 
@@ -204,11 +215,42 @@ namespace TDV.Docx
         {
             get
             {
-                return xmlEl.GetAttribute("Target");
+                return GetAttribute("Target");
             }
             set
             {
-                xmlEl.SetAttribute("Target", value);
+                if (string.IsNullOrEmpty(value))
+                    RemoveAttribute("Target");
+                else
+                    SetAttribute("Target", value);
+            }
+        }
+
+        public RELATIONSHIP_TARGET_MODE TargetMode
+        {
+            get
+            {
+                if (!HasAttribute("TargetMode"))
+                    return RELATIONSHIP_TARGET_MODE.NONE;
+                switch(GetAttribute("TargetMode"))
+                {
+                    case "External":
+                        return RELATIONSHIP_TARGET_MODE.EXTERNAL;
+                }
+                throw new NotImplementedException();
+            }
+            set
+            {
+                switch (value)
+                {
+                    case RELATIONSHIP_TARGET_MODE.EXTERNAL:
+                        SetAttribute("TargetMode", "External");
+                        return;
+                    case RELATIONSHIP_TARGET_MODE.NONE:
+                        RemoveAttribute("TargetMode");
+                        return;
+                }
+                throw new NotImplementedException();
             }
         }
     }

@@ -48,26 +48,26 @@ namespace TDV.Docx
         Size indentingWidth
         )
         {
-            this.borderLeft        =borderLeft;
-            this.borderRight       =borderRight;
-            this.borderTop         =borderTop;
-            this.borderBottom      =borderBottom;
-            this.borderInsideH     =borderInsideH;
-            this.borderInsideV     =borderInsideV;
-            this.applyBorderToCells = applyBorderToCells;
-            this.width             =width;
-            this.indentingWidth    =indentingWidth;
+            this.BorderLeft        =borderLeft;
+            this.BorderRight       =borderRight;
+            this.BorderTop         =borderTop;
+            this.BorderBottom      =borderBottom;
+            this.BorderInsideH     =borderInsideH;
+            this.BorderInsideV     =borderInsideV;
+            this.ApplyBorderToCells = applyBorderToCells;
+            this.Width             =width;
+            this.IndentingWidth    =indentingWidth;
         }
 
-        public Border borderLeft;
-        public Border borderRight;
-        public Border borderTop;
-        public Border borderBottom;
-        public Border borderInsideH;
-        public Border borderInsideV;
-        public bool applyBorderToCells;
-        public Size width;
-        public Size indentingWidth;
+        public Border BorderLeft;
+        public Border BorderRight;
+        public Border BorderTop;
+        public Border BorderBottom;
+        public Border BorderInsideH;
+        public Border BorderInsideV;
+        public bool ApplyBorderToCells;
+        public Size Width;
+        public Size IndentingWidth;
     }
     public class Table : Node
     {
@@ -80,11 +80,11 @@ namespace TDV.Docx
         {
             get
             {
-                return TblPr.tblW.Width;
+                return TblPr.TblW.Width;
             }
             set
             {
-                TblPr.tblW.Width = value;
+                TblPr.TblW.Width = value;
             }
         }
 
@@ -164,8 +164,8 @@ namespace TDV.Docx
         /// </summary>
         internal void CreateChangeNodes(string author = "TDV")
         {
-            TblPr.CreateChangeNode("w:tblPrChange", TblPr.xmlEl, author);
-            TblGrid.CreateChangeNode("w:tblGridChange", TblGrid.xmlEl, author);
+            TblPr.CreateChangeNode("w:tblPrChange", TblPr.XmlEl, author);
+            TblGrid.CreateChangeNode("w:tblGridChange", TblGrid.XmlEl, author);
             foreach (Tr row in Rows)
             {
                 row.trPr.CreateChangeNode(author);
@@ -192,7 +192,7 @@ namespace TDV.Docx
                 foreach (Tc tc in tr.Cells)
                 {
                     tc.FindChild<TcProp>()?.FindChild<TcPrChange>()?.Delete();
-                    foreach(Node n in tc.childNodes)
+                    foreach(Node n in tc.ChildNodes)
                     {
                         if (n is Paragraph)
                             ((Paragraph)n).ApplyAllFixes();
@@ -205,10 +205,10 @@ namespace TDV.Docx
 
         public void CompateStyle(TableStyle style, string author = "TDV")
         {
-            CompareBorders(style.borderLeft, style.borderRight, style.borderTop, style.borderBottom,
-                style.borderInsideH, style.borderInsideV, style.applyBorderToCells, author);
-            CompareIndenting(style.indentingWidth, author);
-            CompareTblWidth(style.width, author);
+            CompareBorders(style.BorderLeft, style.BorderRight, style.BorderTop, style.BorderBottom,
+                style.BorderInsideH, style.BorderInsideV, style.ApplyBorderToCells, author);
+            CompareIndenting(style.IndentingWidth, author);
+            CompareTblWidth(style.Width, author);
         }
         public TableProp TblPr
         {
@@ -219,12 +219,12 @@ namespace TDV.Docx
         }
         public void CompareBorders(Border left, Border right, Border top, Border bottom, Border insideH, Border insideV, bool applyToCells, string author = "TDV")
         {
-            TblPr.tblBorders.CompareBorder(BORDER.LEFT, left, author);
-            TblPr.tblBorders.CompareBorder(BORDER.RIGHT, right, author);
-            TblPr.tblBorders.CompareBorder(BORDER.TOP, top, author);
-            TblPr.tblBorders.CompareBorder(BORDER.BOTTOM, bottom, author);
-            TblPr.tblBorders.CompareBorder(BORDER.INSIDE_H, insideH, author);
-            TblPr.tblBorders.CompareBorder(BORDER.INSIDE_V, insideV, author);
+            TblPr.TblBorders.CompareBorder(BORDER.LEFT, left, author);
+            TblPr.TblBorders.CompareBorder(BORDER.RIGHT, right, author);
+            TblPr.TblBorders.CompareBorder(BORDER.TOP, top, author);
+            TblPr.TblBorders.CompareBorder(BORDER.BOTTOM, bottom, author);
+            TblPr.TblBorders.CompareBorder(BORDER.INSIDE_H, insideH, author);
+            TblPr.TblBorders.CompareBorder(BORDER.INSIDE_V, insideV, author);
             foreach(Tr tr in Rows)
             foreach (Tc tc in tr.Cells)
             {
@@ -283,11 +283,11 @@ namespace TDV.Docx
         public TableProp(Node parent) : base(parent, "w:tblPr") { }
         public TableProp(XmlElement xmlElement, Node parent) : base(xmlElement, parent, "w:tblPr") { }
 
-        public TblBorders tblBorders
+        public TblBorders TblBorders
         {
             get
             {
-                var result = childNodes.Where(x => x is TblBorders).Select(x => x).FirstOrDefault();
+                var result = ChildNodes.Where(x => x is TblBorders).Select(x => x).FirstOrDefault();
                 if (result == null)
                     result = new TblBorders(this);
                 return (TblBorders)result;
@@ -297,63 +297,54 @@ namespace TDV.Docx
         public Style CurrStyle {
             get
             {
-                TblStyle el = (TblStyle) childNodes.Where(x=>x is TblStyle).FirstOrDefault();
+                TblStyle el = (TblStyle) ChildNodes.Where(x=>x is TblStyle).FirstOrDefault();
                 if (el == null)
                     return null;
-                return GetDocxDocument().styles.GetStyleById(el.StyleId);
+                return GetDocxDocument().Styles.GetStyleById(el.StyleId);
             }
         }
 
         public void CompareIndenting(Size width,string author)
         {
-            if (tblInd.Width != width )
+            if (TblInd.Width != width )
             {
                 Table tbl = GetParentRecurcieve<Table>();
                 tbl.CreateChangeNodes(author);
-                tblInd.Width=width;
+                TblInd.Width=width;
             }
         }
 
         public void CompareTblWidth(Size width, string author)
         {
-            if (tblW.Width != width)
+            if (TblW.Width != width)
             {
                 Table tbl = GetParentRecurcieve<Table>();
                 tbl.CreateChangeNodes(author);
-                tblW.Width = width;
+                TblW.Width = width;
             }
         }
 
-        public TableWidth tblW
+        public TableWidth TblW
         {
             get
             {
-                var result = childNodes.Where(x => x is TableWidth).Select(x => x).FirstOrDefault();
-                if (result == null)
-                    result = new TableWidth(this);
-                return (TableWidth)result;
+                return FindChildOrCreate<TableWidth>();
             }
         }
 
-        public TblInd tblInd
+        public TblInd TblInd
         {
             get
             {
-                var result = childNodes.Where(x => x is TblInd).Select(x => x).FirstOrDefault();
-                if (result == null)
-                    result = new TblInd(this);
-                return (TblInd)result;
+                return FindChildOrCreate<TblInd>();
             }
         }
 
-        public TblStyle tblStyle
+        public TblStyle TblStyle
         {
             get
             {
-                var result = childNodes.Where(x => x is TblStyle).Select(x => x).FirstOrDefault();
-                if (result == null)
-                    result = new TblStyle(this);
-                return (TblStyle)result;
+                return FindChildOrCreate<TblStyle>();
             }
         }
 
@@ -367,7 +358,7 @@ namespace TDV.Docx
 
         public string StyleId
         {
-            get { return xmlEl.GetAttribute("w:val"); }
+            get { return XmlEl.GetAttribute("w:val"); }
         }
 
     }
@@ -402,7 +393,7 @@ namespace TDV.Docx
             {
                 Size parentSize = null;
                 if (SizeType == TABLE_WIDTH_TYPE.PCT)
-                    parentSize = Section?.sectProp.WorkspaceWidth;
+                    parentSize = Section?.SectProp.WorkspaceWidth;
                 return new Size(Int32.Parse(GetAttribute("w:w")),SizeType,parentSize);
             }
             set {
@@ -415,9 +406,9 @@ namespace TDV.Docx
         {
             get
             {
-                return (TABLE_WIDTH_TYPE)Enum.Parse(typeof(TABLE_WIDTH_TYPE), xmlEl.GetAttribute("w:type"),true);
+                return (TABLE_WIDTH_TYPE)Enum.Parse(typeof(TABLE_WIDTH_TYPE), XmlEl.GetAttribute("w:type"),true);
             }
-            set { xmlEl.SetAttribute("type", xmlEl.NamespaceURI, value.ToString().ToLower()); }
+            set { XmlEl.SetAttribute("type", XmlEl.NamespaceURI, value.ToString().ToLower()); }
         }
 
     }
@@ -436,7 +427,7 @@ namespace TDV.Docx
             get
             {
                 try { 
-                    return new Size(Int32.Parse(xmlEl.GetAttribute("w:w")), SizeType);
+                    return new Size(Int32.Parse(XmlEl.GetAttribute("w:w")), SizeType);
                 }
                 catch
                 {
@@ -454,9 +445,9 @@ namespace TDV.Docx
         {
             get
             {
-                if (!xmlEl.HasAttribute("w:type"))
+                if (!XmlEl.HasAttribute("w:type"))
                     return TABLE_WIDTH_TYPE.NIL;
-                return (TABLE_WIDTH_TYPE)Enum.Parse(typeof(TABLE_WIDTH_TYPE), xmlEl.GetAttribute("w:type"), true);
+                return (TABLE_WIDTH_TYPE)Enum.Parse(typeof(TABLE_WIDTH_TYPE), XmlEl.GetAttribute("w:type"), true);
             }
             set { SetAttribute("w:type", value.ToString().ToLower()); }
         }
@@ -495,7 +486,7 @@ namespace TDV.Docx
         {
             get
             {
-                return new Size(Int32.Parse(xmlEl.GetAttribute("w:w")),SizeType);
+                return new Size(Int32.Parse(XmlEl.GetAttribute("w:w")),SizeType);
             }
             set
             {
@@ -510,10 +501,10 @@ namespace TDV.Docx
             get
             {
                 TABLE_WIDTH_TYPE result = TABLE_WIDTH_TYPE.AUTO;
-                Enum.TryParse<TABLE_WIDTH_TYPE>(xmlEl.GetAttribute("w:type"), true,out result);
+                Enum.TryParse<TABLE_WIDTH_TYPE>(XmlEl.GetAttribute("w:type"), true,out result);
                 return result;
             }
-            set { xmlEl.SetAttribute("type", xmlEl.NamespaceURI, value.ToString().ToLower()); }
+            set { XmlEl.SetAttribute("type", XmlEl.NamespaceURI, value.ToString().ToLower()); }
         }
         /// <summary>
         /// Задает значения ширины таблицы в режиме правки
@@ -545,7 +536,7 @@ namespace TDV.Docx
         public TrProp trPr {
             get
             {
-                var result = childNodes.Where(x => x is TrProp).Select(x => x).FirstOrDefault();
+                var result = ChildNodes.Where(x => x is TrProp).Select(x => x).FirstOrDefault();
                 if (result == null)
                     result = new TrProp(this);
                 return (TrProp)result;
@@ -556,7 +547,7 @@ namespace TDV.Docx
 
         public List<Tc> Cells
         {
-            get { return childNodes.Where(x => x is Tc).Select(x => (Tc)x).ToList(); }
+            get { return ChildNodes.Where(x => x is Tc).Select(x => (Tc)x).ToList(); }
         }
 
         public void CorrectDel(string author = "TDV")
@@ -588,7 +579,7 @@ namespace TDV.Docx
 
         public void CreateChangeNode(string author="TDV")
         {
-            CreateChangeNode("w:trPrChange", xmlEl, author);
+            CreateChangeNode("w:trPrChange", XmlEl, author);
         }
         /// <summary>
         /// Изменение высоты строки в режиме правки
@@ -597,22 +588,19 @@ namespace TDV.Docx
         /// <param name="author"></param>
         public void CompareHeigth(int heigth,string author)
         {
-            if ( trHeight.Height != heigth)
+            if ( TrHeight.Value != heigth)
             {
                 CreateChangeNode(author);
-                trHeight.Height = heigth;
+                TrHeight.Value = heigth;
             }
         }
 
 
-        public TrHeight trHeight
+        public TrHeight TrHeight
         {
             get
             {
-                var result = childNodes.Where(x => x is TrHeight).Select(x => x).FirstOrDefault();
-                if (result == null)
-                    result = new TrHeight(this);
-                return (TrHeight)result;
+                return FindChildOrCreate<TrHeight>();
             }
         }
 
@@ -622,15 +610,15 @@ namespace TDV.Docx
         /// </summary>
         public void SetCorrectionMode(string mode, string author = "TDV")
         {
-            var cNode = (XmlElement)xmlEl.SelectSingleNode($"w:{mode}", nsmgr);
+            var cNode = (XmlElement)XmlEl.SelectSingleNode($"w:{mode}", Nsmgr);
             if (cNode == null)
             {
-                cNode = (XmlElement)xmlDoc.CreateElement($"w:{mode}", xmlEl.NamespaceURI);
-                cNode.SetAttribute("id", xmlEl.NamespaceURI, (xmlDoc.GetLastId() + 1).ToString());
-                xmlEl.InsertBefore(cNode, xmlEl.FirstChild);
+                cNode = (XmlElement)XmlDoc.CreateElement($"w:{mode}", XmlEl.NamespaceURI);
+                cNode.SetAttribute("id", XmlEl.NamespaceURI, (GetDocxDocument().Document.GetLastId() + 1).ToString());
+                XmlEl.InsertBefore(cNode, XmlEl.FirstChild);
             }
-            cNode.SetAttribute("author", xmlEl.NamespaceURI, author);
-            cNode.SetAttribute("date", xmlEl.NamespaceURI, DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ssZ"));
+            cNode.SetAttribute("author", XmlEl.NamespaceURI, author);
+            cNode.SetAttribute("date", XmlEl.NamespaceURI, DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ssZ"));
         }
 
     }
@@ -644,20 +632,20 @@ namespace TDV.Docx
         /// <summary>
         /// При установке значения -1 тег w:trHeight будет удален
         /// </summary>
-        public int Height
+        public int Value
         {
             get
             {
-                if (!xmlEl.HasAttribute("w:val"))
+                if (!XmlEl.HasAttribute("w:val"))
                     return -1;
-                return Int32.Parse(xmlEl.GetAttribute("w:val"));
+                return Int32.Parse(XmlEl.GetAttribute("w:val"));
             }
             set
             {
                 if (value == -1)
                     Delete();
                 else
-                    xmlEl.SetAttribute("val", xmlEl.NamespaceURI, value.ToString());
+                    XmlEl.SetAttribute("val", XmlEl.NamespaceURI, value.ToString());
             }
         }
     }
@@ -740,14 +728,14 @@ namespace TDV.Docx
                 default:
                     break;
             }
-            Style style = ((TableProp)parent).CurrStyle;
-            XmlElement n = (XmlElement)xmlEl.SelectSingleNode($"w:{localName}", nsmgr);
+            Style style = ((TableProp)Parent).CurrStyle;
+            XmlElement n = (XmlElement)XmlEl.SelectSingleNode($"w:{localName}", Nsmgr);
             Border b = new Border();
             if (n == null && style != null)
             {
                 TableProp styleTableProp = style.GetStyleProp<TableProp>();
                 if(styleTableProp != null)
-                    n= (XmlElement)styleTableProp.xmlEl.SelectSingleNode($"w:tblBorders/w:{localName}", nsmgr);
+                    n= (XmlElement)styleTableProp.XmlEl.SelectSingleNode($"w:tblBorders/w:{localName}", Nsmgr);
             }
             if (n != null)
             {
@@ -790,19 +778,19 @@ namespace TDV.Docx
                 default:
                     break;
             }
-            XmlElement n = (XmlElement)xmlEl.SelectSingleNode($"{prefix}:{localName}", nsmgr);
+            XmlElement n = (XmlElement)XmlEl.SelectSingleNode($"{prefix}:{localName}", Nsmgr);
             
             if (n == null)
             {
-                n = xmlDoc.CreateElement($"{prefix}:{localName}", xmlDoc.DocumentElement.NamespaceURI);
-                xmlEl.AppendChild(n);
+                n = XmlDoc.CreateElement($"{prefix}:{localName}", XmlDoc.DocumentElement.NamespaceURI);
+                XmlEl.AppendChild(n);
             }
 
             if (b.type != LINE_TYPE.UNKNOWN)
-                n.SetAttribute("val", xmlEl.NamespaceURI, b.type.ToString().ToLower());
-            n.SetAttribute("sz", xmlEl.NamespaceURI, b.size.ToString());
-            n.SetAttribute("space", xmlEl.NamespaceURI, b.space.ToString());
-            n.SetAttribute("color", xmlEl.NamespaceURI, b.color);
+                n.SetAttribute("val", XmlEl.NamespaceURI, b.type.ToString().ToLower());
+            n.SetAttribute("sz", XmlEl.NamespaceURI, b.size.ToString());
+            n.SetAttribute("space", XmlEl.NamespaceURI, b.space.ToString());
+            n.SetAttribute("color", XmlEl.NamespaceURI, b.color);
         }
     }
 
@@ -913,7 +901,7 @@ namespace TDV.Docx
 
         public List<Paragraph> Paragraphs
         {
-            get { return childNodes.Where(x => x is Paragraph).Select(x => (Paragraph) x).ToList(); }
+            get { return ChildNodes.Where(x => x is Paragraph).Select(x => (Paragraph) x).ToList(); }
         }
 
         public override string Text
@@ -921,7 +909,7 @@ namespace TDV.Docx
             get
             {
                 List<string> arr = new List<string>();
-                foreach (Node n in childNodes)
+                foreach (Node n in ChildNodes)
                 {
                     if (n is Paragraph)
                         arr.Add(((Paragraph) n).Text);
@@ -950,7 +938,7 @@ namespace TDV.Docx
             if (width != TcProp.TcW.Width)
             {
                 ParentTable.CreateChangeNodes(author);
-                TcProp.CreateChangeNode("w:tcPrChange", TcProp.xmlEl, author);
+                TcProp.CreateChangeNode("w:tcPrChange", TcProp.XmlEl, author);
                 TcProp.TcW.Width = width;
             }
         }
@@ -960,7 +948,7 @@ namespace TDV.Docx
             if (vAlign != TcProp.vAlign.Align )
             {
                 ParentTable.CreateChangeNodes(author);
-                TcProp.CreateChangeNode("w:tcPrChange", TcProp.xmlEl, author);
+                TcProp.CreateChangeNode("w:tcPrChange", TcProp.XmlEl, author);
                 TcProp.vAlign.Align = vAlign;
             }
         }
@@ -1025,11 +1013,11 @@ namespace TDV.Docx
         {
             get
             {
-                return TcProp.vMerge.val;
+                return TcProp.vMerge.Value;
             }
             set
             {
-                TcProp.vMerge.val = value;
+                TcProp.vMerge.Value = value;
             }
         }
         /// <summary>
@@ -1085,10 +1073,10 @@ namespace TDV.Docx
             get
             {
                 TABLE_WIDTH_TYPE result = TABLE_WIDTH_TYPE.AUTO;
-                Enum.TryParse<TABLE_WIDTH_TYPE>(xmlEl.GetAttribute("w:type"), true, out result);
+                Enum.TryParse<TABLE_WIDTH_TYPE>(XmlEl.GetAttribute("w:type"), true, out result);
                 return result;
             }
-            set { xmlEl.SetAttribute("type", xmlEl.NamespaceURI, value.ToString().ToLower()); }
+            set { XmlEl.SetAttribute("type", XmlEl.NamespaceURI, value.ToString().ToLower()); }
         }
     }
 
@@ -1107,7 +1095,7 @@ namespace TDV.Docx
 
         public void CreateChangeNode(string author)
         { 
-            CreateChangeNode("w:tcPrChange",  xmlEl, author);
+            CreateChangeNode("w:tcPrChange",  XmlEl, author);
         }
 
         public TcBorders TcBorders
@@ -1155,7 +1143,7 @@ namespace TDV.Docx
             get
             {
                 VERTICAL_ALIGN result = VERTICAL_ALIGN.TOP;
-                Enum.TryParse<VERTICAL_ALIGN>(xmlEl.GetAttribute("w:val"),true,out result);
+                Enum.TryParse<VERTICAL_ALIGN>(XmlEl.GetAttribute("w:val"),true,out result);
                 return result;
             }
             set
@@ -1163,7 +1151,7 @@ namespace TDV.Docx
                 if (value == VERTICAL_ALIGN.TOP)
                     Delete();
                 else
-                    xmlEl.SetAttribute("val", xmlEl.NamespaceURI, value.ToString().ToLower());
+                    XmlEl.SetAttribute("val", XmlEl.NamespaceURI, value.ToString().ToLower());
             }
         }
     }
@@ -1177,15 +1165,15 @@ namespace TDV.Docx
         /// <summary>
         /// -1 - пустой тег <w:vMerge/>. пустым тегом заполняются ячейки строками ниже
         /// </summary>
-        public int val
+        public int Value
         {
             get
             {
                 int result = -1;
-                if (xmlEl.Attributes.Count == 0)
+                if (XmlEl.Attributes.Count == 0)
                     return result;
-                Int32.TryParse(xmlEl.GetAttribute("w:val"), out result);
-                if (xmlEl.GetAttribute("w:val") == "restart")
+                Int32.TryParse(XmlEl.GetAttribute("w:val"), out result);
+                if (XmlEl.GetAttribute("w:val") == "restart")
                     result = GetParentRecurcieve<Table>().Rows.Count;
                 return result;
             }
@@ -1196,13 +1184,13 @@ namespace TDV.Docx
                 int CurrColIndex = GetParentRecurcieve<Tc>().CellIndex;
                 if (value == -1)
                 {
-                    xmlEl.RemoveAllAttributes();
+                    XmlEl.RemoveAllAttributes();
                 }
                 else if (value == 0 || value == 1)
                 {
-                    int oldVal = val;
-                    if (val > 0)
-                        for (int rowIndex = CurrRowIndex + 1; rowIndex < val; rowIndex++)
+                    int oldVal = Value;
+                    if (Value > 0)
+                        for (int rowIndex = CurrRowIndex + 1; rowIndex < Value; rowIndex++)
                         {
                             Tc cell = tbl.GetCell(rowIndex, CurrColIndex);
                             cell.TcProp.vMerge.Delete();
@@ -1212,13 +1200,13 @@ namespace TDV.Docx
                 }
                 else
                 {
-                    xmlEl.SetAttribute("val", xmlEl.NamespaceURI, value.ToString());
+                    XmlEl.SetAttribute("val", XmlEl.NamespaceURI, value.ToString());
 
                     ///установить для дстрок ниже тег <w:vMerge/>
                     for (int rowIndex = CurrRowIndex + 1; rowIndex < CurrRowIndex + value; rowIndex++)
                     {
                         Tc cell = tbl.GetCell(rowIndex, CurrColIndex);
-                        cell.TcProp.vMerge.val = -1;
+                        cell.TcProp.vMerge.Value = -1;
                     }
                 }
             }
@@ -1238,14 +1226,13 @@ namespace TDV.Docx
         {
             get
             {
-                try
-                {
-                    return Int32.Parse(GetAttribute("w:val"));
-                }
-                catch
-                {
-                    return 1;
-                }
+                if (HasAttribute("w:val"))
+                    try
+                    {    
+                        return Int32.Parse(GetAttribute("w:val"));
+                    }
+                    catch  {  }
+                return 1;
             }
             set
             {
@@ -1273,12 +1260,8 @@ namespace TDV.Docx
 
             if (currBorder != b)
             {
-                Table table= GetParentRecurcieve<Table>();
-                
-                table.CreateChangeNodes(author);
-                //table.tblPr.CreateChangeNode("w:tblPrChange", table.tblPr.xmlEl, author);
-                //table.tblGrid.CreateChangeNode("w:tblGridChange", table.tblGrid.xmlEl, author);
-                
+                Table table= GetParentRecurcieve<Table>();                
+                table.CreateChangeNodes(author);                
                 SetBorder(type, b);
             }
         }
@@ -1327,13 +1310,13 @@ namespace TDV.Docx
                     break;
             }
             Style style = (GetParentRecurcieve<Table>().TblPr).CurrStyle;
-            XmlElement n = (XmlElement)xmlEl.SelectSingleNode($"w:{localName}", nsmgr);
+            XmlElement n = (XmlElement)XmlEl.SelectSingleNode($"w:{localName}", Nsmgr);
             Border b = new Border();
             if (n == null && style != null)
             {
                 TableProp styleTableProp = style.GetStyleProp<TableProp>();
                 if (styleTableProp != null)
-                    n = (XmlElement)styleTableProp.xmlEl.SelectSingleNode($"w:tblBorders/w:{localName}", nsmgr);
+                    n = (XmlElement)styleTableProp.XmlEl.SelectSingleNode($"w:tblBorders/w:{localName}", Nsmgr);
             }
             if (n != null)
             {
@@ -1386,24 +1369,24 @@ namespace TDV.Docx
                 default:
                     break;
             }
-            XmlElement n = (XmlElement)xmlEl.SelectSingleNode($"{prefix}:{localName}", nsmgr);
+            XmlElement n = (XmlElement)XmlEl.SelectSingleNode($"{prefix}:{localName}", Nsmgr);
 
             if (n == null)
             {
-                n = xmlDoc.CreateElement($"{prefix}:{localName}", xmlDoc.DocumentElement.NamespaceURI);
-                xmlEl.AppendChild(n);
+                n = XmlDoc.CreateElement($"{prefix}:{localName}", XmlDoc.DocumentElement.NamespaceURI);
+                XmlEl.AppendChild(n);
             }
 
             if (b.type == LINE_TYPE.NONE)
             {
-                n.SetAttribute("val", xmlEl.NamespaceURI, "nil");
+                n.SetAttribute("val", XmlEl.NamespaceURI, "nil");
             }
             else if (b.type != LINE_TYPE.UNKNOWN)
-                n.SetAttribute("val", xmlEl.NamespaceURI, b.type.ToString().ToLower());
+                n.SetAttribute("val", XmlEl.NamespaceURI, b.type.ToString().ToLower());
 
-            n.SetAttribute("sz", xmlEl.NamespaceURI, b.size.ToString());
-            n.SetAttribute("space", xmlEl.NamespaceURI, b.space.ToString());
-            n.SetAttribute("color", xmlEl.NamespaceURI, b.color);
+            n.SetAttribute("sz", XmlEl.NamespaceURI, b.size.ToString());
+            n.SetAttribute("space", XmlEl.NamespaceURI, b.space.ToString());
+            n.SetAttribute("color", XmlEl.NamespaceURI, b.color);
         }
     }
 

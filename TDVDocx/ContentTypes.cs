@@ -12,43 +12,21 @@ namespace TDV.Docx
     {
         public ContentTypes(DocxDocument docx):base(docx)
         {
-            docxDocument = docx;
+            DocxDocument = docx;
             try
             {
                 file = docx.sourceFolder.FindFile("[Content_Types].xml");
 
-                xmlDoc = new XmlDocument();
-                xmlDoc.LoadXml(file.GetSourceString());
-                //nsmgr = new XmlNamespaceManager(xmlDoc.NameTable);
-                //nsmgr.AddNamespace("Relationships", "http://schemas.openxmlformats.org/package/2006/relationships");
+                XmlDoc = new XmlDocument();
+                XmlDoc.LoadXml(file.GetSourceString());
                 FillNamespaces();
-                xmlEl = (XmlElement)xmlDoc.SelectSingleNode(@"/DEFAULT:Types", nsmgr);
+                XmlEl = (XmlElement)XmlDoc.SelectSingleNode(@"/DEFAULT:Types", Nsmgr);
             }
             catch (Exception e)
             {
                 Console.WriteLine(e.Message);
             }
-        }
-
-        /// <summary>
-        /// вернет существующую, если такой target Уже есть
-        /// иначе создаст новую
-        /// </summary>
-        /// <param name="target">путь к файлу отностилеьно document.xml.rels, например ../customXml/item1.xml</param>
-        /// <returns></returns>
-        //public Relationship NewRelationship(string target,RELATIONSIP_TYPE type)
-        //{
-        //    foreach (Relationship r in Relationships)
-        //        if (r.Target == target)
-        //            return r;
-        //    Relationship newRel = NewNodeLast<Relationship>();
-        //    newRel.Id = $"rId{GetMaxRelId() + 1}";
-        //    newRel.Type = type;
-        //    newRel.Target = target;
-        //    return newRel;
-        //}
-
-       
+        }   
 
         public List<Override> Overrides
         {
@@ -99,24 +77,24 @@ namespace TDV.Docx
         {
             get
             {
-                return xmlEl.GetAttribute("PartName");
+                return XmlEl.GetAttribute("PartName");
             }
             set
             {
                 if (!value.StartsWith("/"))
                     value = "/" + value;
-                xmlEl.SetAttribute("PartName", value);
+                XmlEl.SetAttribute("PartName", value);
             }
         }
         public string ContentType
         {
             get
             {
-                return xmlEl.GetAttribute("ContentType");
+                return XmlEl.GetAttribute("ContentType");
             }
             set
             {
-                xmlEl.SetAttribute("ContentType", value);
+                XmlEl.SetAttribute("ContentType", value);
             }
         }
     }
