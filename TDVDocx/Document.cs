@@ -6,8 +6,11 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Xml;
 using System.Xml.XPath;
+using System.Xml.Linq;
 using System.Drawing;
-
+using System.Text.RegularExpressions;
+using System.Windows.Forms;
+ 
 namespace TDV.Docx
 {
     public class BaseNode : Node
@@ -15,13 +18,13 @@ namespace TDV.Docx
         internal ArchFile file;
         protected BaseNode(DocxDocument docxDocument,string qualifiedName = ""):base(qualifiedName)
         {
-            this.docxDocument = docxDocument;
+            this.DocxDocument = docxDocument;
             IsExist = true;
             GetDocxDocument().FilesForApply.Add(this);
         }
 
         public new virtual void ApplyAllFixes() {
-            foreach (Node n in childNodes)
+            foreach (Node n in ChildNodes)
             {
                 if (n is Paragraph)
                 {
@@ -46,9 +49,9 @@ namespace TDV.Docx
 
         internal void FillNamespaces()
         {
-            nsmgr = new XmlNamespaceManager(xmlDoc.NameTable);
+            Nsmgr = new XmlNamespaceManager(XmlDoc.NameTable);
             IDictionary<string, string> localNamespaces = null;
-            XPathNavigator xNav = xmlDoc.CreateNavigator();
+            XPathNavigator xNav = XmlDoc.CreateNavigator();
             while (xNav.MoveToFollowing(XPathNodeType.Element))
             {
                 localNamespaces = xNav.GetNamespacesInScope(XmlNamespaceScope.Local);
@@ -57,7 +60,7 @@ namespace TDV.Docx
                     string prefix = localNamespace.Key;
                     if (string.IsNullOrEmpty(prefix))
                         prefix = "DEFAULT";
-                    nsmgr.AddNamespace(prefix, localNamespace.Value);
+                    Nsmgr.AddNamespace(prefix, localNamespace.Value);
                 }
             }
         }
@@ -69,13 +72,13 @@ namespace TDV.Docx
             using (StringWriter stringWriter = new StringWriter())
             using (XmlWriter xw = XmlWriter.Create(stringWriter))
             {
-                xmlDoc.WriteTo(xw);
+                XmlDoc.WriteTo(xw);
                 xw.Flush();
-                file.content = Encoding.UTF8.GetBytes(stringWriter.GetStringBuilder().ToString());
+                file.Content = Encoding.UTF8.GetBytes(stringWriter.GetStringBuilder().ToString());
             }
         }
         public bool IsExist;
-        public DocxDocument docxDocument;
+        public DocxDocument DocxDocument;
 
         public override string ToString()
         {
@@ -83,24 +86,23 @@ namespace TDV.Docx
         }
     }
 
-
     public class Section
     {
         public Section(int Pos)
         {
             this.Pos = Pos;
-            childNodes = new List<Node>();
+            ChildNodes = new List<Node>();
         }
         /// <summary>
         /// Переменная для хранения своих комментариев к секции. 
         /// Не используется внутри библиотеки
         /// </summary>
         public object Tag;
-        public List<Node> childNodes;
-        public SectProp sectProp;
+        public List<Node> ChildNodes;
+        public SectProp SectProp;
         public List<T> FindChilds<T>() where T : Node
         {
-            return childNodes.Where(x => x is T).Select(x => (T)x).ToList();
+            return ChildNodes.Where(x => x is T).Select(x => (T)x).ToList();
         }
 
         /// <summary>
@@ -111,35 +113,52 @@ namespace TDV.Docx
 
     public class Document : BaseNode
     {
-        public Body body
+        public Body Body
         {
-            get { return (Body)childNodes.Where(x => x is Body).FirstOrDefault(); }
+            get { return (Body)ChildNodes.Where(x => x is Body).FirstOrDefault(); }
         }
 
+        public int GetLastId()
+        {
+            int result = 0;
+            //XmlNodeList insDelList = XmlEl.SelectNodes("//*[@w:id]", Nsmgr);
+            XmlNodeList insDelList = XmlEl.SelectNodes(".//@w:id", Nsmgr);
+            if (insDelList.Count > 0)
+                result = insDelList.Cast<XmlAttribute>().Max(x => Int32.Parse(x.Value));
+                /*foreach (XmlAttribute item in insDelList)
+                {
+                    int elId = int.Parse(item.Value);
+                    if (result < elId)
+                    {
+                        result = elId;
+                    }
+                }*/
+            return result;
+        }
         public void UpdateSections()
         {
             _sections = new List<Section>();
             int sectNum = 0;
             Section s = new Section(sectNum);
-            foreach (Node n in body.childNodes)
+            foreach (Node n in Body.ChildNodes)
             {
-                s.childNodes.Add(n);
+                s.ChildNodes.Add(n);
                 //n.Section = s;
                 if (n is Paragraph && n.FindChild<PProp>()?.FindChild<SectProp>() != null)
                 {
-                    s.sectProp = n.FindChild<PProp>()?.FindChild<SectProp>();
+                    s.SectProp = n.FindChild<PProp>()?.FindChild<SectProp>();
                     _sections.Add(s);
                     sectNum++; 
                     s = new Section(sectNum);
                 }else if(n is SectProp)
                 {
-                    s.sectProp = (SectProp)n;
+                    s.SectProp = (SectProp)n;
                     _sections.Add(s);
                     sectNum++;
                     s = new Section(sectNum);
                 }
             }
-            if(s.childNodes.Count>0)
+            if(s.ChildNodes.Count>0)
             {
                 _sections.Add(s);
             }
@@ -167,12 +186,12 @@ namespace TDV.Docx
             {
                 file = docx.sourceFolder.FindFile("document.xml");
 
-                xmlDoc = new XmlDocument();
-                xmlDoc.LoadXml(file.GetSourceString());
+                XmlDoc = new XmlDocument();
+                XmlDoc.LoadXml(file.GetSourceString());
                 FillNamespaces();
-                xmlEl = (XmlElement)xmlDoc.SelectSingleNode("/w:document", nsmgr);
+                XmlEl = (XmlElement)XmlDoc.SelectSingleNode("/w:document", Nsmgr);
 
-                this.xmlDoc = xmlEl.OwnerDocument;
+                this.XmlDoc = XmlEl.OwnerDocument;
             }
             catch (Exception e)
             {
@@ -185,7 +204,7 @@ namespace TDV.Docx
         /// </summary>
         public override void ApplyAllFixes()
         {
-            foreach(Node n in body.childNodes)
+            foreach(Node n in Body.ChildNodes)
             {
                 if(n is Paragraph)
                 {
@@ -204,27 +223,12 @@ namespace TDV.Docx
             }
         }
 
-
-        /*
-        public void Apply()
-        {
-            RemoveEmptyNodes(xmlEl);
-            using (StringWriter stringWriter = new StringWriter())
-            using (XmlWriter xw = XmlWriter.Create(stringWriter))
-            {
-                xmlDoc.WriteTo(xw);
-                xw.Flush();
-                file.content = Encoding.UTF8.GetBytes(stringWriter.GetStringBuilder().ToString());
-            }
-        }*/
-
         /// <summary>
         /// удаляет ноды, в которых не заполенны атрибуты (согласно списку)
         /// </summary>
         /// <param name="el"></param>
         private void RemoveEmptyNodes(XmlElement el)
         {
-
             List<string> namesForDel = new List<string>() { "w:vAlign", "w:tcBorders", "w:tblBorders", "w:trHeight" };
             List<XmlElement> forDel=new List<XmlElement>();
             foreach (XmlNode item in el.ChildNodes)
@@ -238,12 +242,10 @@ namespace TDV.Docx
                         RemoveEmptyNodes(child);
                 }
             }
-
             foreach (XmlElement item in forDel)
             {
                 el.RemoveChild(item);
             }
-
         }
     }
 
@@ -251,11 +253,11 @@ namespace TDV.Docx
     {
         public Body(XmlElement xmlElement, Node parent) : base(xmlElement, parent, "w:body")
         { }
-        public SectProp sectProp
+        public SectProp SectProp
         {
             get
             {
-                SectProp result = childNodes.Where(x => x is SectProp).Select(x => (SectProp)x).FirstOrDefault();
+                SectProp result = ChildNodes.Where(x => x is SectProp).Select(x => (SectProp)x).FirstOrDefault();
                 if (result == null)
                     result = new SectProp(this);
                 return result;
@@ -270,6 +272,10 @@ namespace TDV.Docx
         public RProp(Node parent) : base(parent, "w:rPr") { }
         public RProp(XmlElement xmlElement, Node parent, string qualifiedName = "w:rPr") : base(xmlElement, parent, qualifiedName) { }
 
+        public Lang Lang
+        {
+            get { return FindChildOrCreate<Lang>(); }
+        }
 
         public void SetStyle(RStyle style)
         {
@@ -281,7 +287,12 @@ namespace TDV.Docx
             Color = style.color;
             Highlight = style.highlight;
             Underline=style.underline;
-            border.border = style.border;
+            Border.Border = style.border;
+        }
+
+        public RStyle GetRStyle()
+        {
+            return new RStyle(IsBold, Font, (double)FontSize, IsItalic, IsStrike, Underline, Color, Highlight, Border.Border);            
         }
 
         /// <summary>
@@ -290,33 +301,30 @@ namespace TDV.Docx
         /// </summary>
         public void SetCorrectionMode(string mode, string author = "TDV")
         {
-            var cNode = (XmlElement)xmlEl.SelectSingleNode($"w:{mode}", nsmgr);
+            var cNode = (XmlElement)XmlEl.SelectSingleNode($"w:{mode}", Nsmgr);
             if (cNode == null)
             {
-                cNode = (XmlElement)xmlDoc.CreateElement($"w:{mode}", xmlEl.NamespaceURI);
-                cNode.SetAttribute("id", xmlEl.NamespaceURI, (xmlDoc.GetLastId() + 1).ToString());
-                xmlEl.InsertBefore(cNode, xmlEl.FirstChild);
+                cNode = (XmlElement)XmlDoc.CreateElement($"w:{mode}", XmlEl.NamespaceURI);
+                cNode.SetAttribute("id", XmlEl.NamespaceURI, (GetDocxDocument().Document.GetLastId() + 1).ToString());
+                XmlEl.InsertBefore(cNode, XmlEl.FirstChild);
             }
-            cNode.SetAttribute("author", xmlEl.NamespaceURI, author);
-            cNode.SetAttribute("date", xmlEl.NamespaceURI, DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ssZ"));
+            cNode.SetAttribute("author", XmlEl.NamespaceURI, author);
+            cNode.SetAttribute("date", XmlEl.NamespaceURI, DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ssZ"));
 
         }
 
 
-        public RBorder border
+        public RBorder Border
         {
             get
             {
-                RBorder result = childNodes.Where(x => x is RBorder).Select(x => (RBorder)x).FirstOrDefault();
-                if (result == null)
-                    result = new RBorder(this);
-                return result;
+                return FindChildOrCreate<RBorder>();
             }
         }
 
         public void CompareBorder(Border b, string author = "TDV")
         {
-            border.CompareBorder(b, author);
+            Border.CompareBorder(b, author);
         }
 
         public void CompareStyle(RStyle style, string author = "TDV")
@@ -336,7 +344,7 @@ namespace TDV.Docx
         {
             if (font.ToUpper() != Font.ToUpper())
             {
-                CreateChangeNode("w:rPrChange", xmlEl, author);
+                CreateChangeNode("w:rPrChange", XmlEl, author);
                 Font = font;
             }
         }
@@ -344,7 +352,7 @@ namespace TDV.Docx
         {
             if (fontSize != FontSize)
             {
-                CreateChangeNode("w:rPrChange", xmlEl, author);
+                CreateChangeNode("w:rPrChange", XmlEl, author);
                 FontSize = fontSize;
             }
         }
@@ -352,7 +360,7 @@ namespace TDV.Docx
         {
             if (IsBold != isBold)
             {
-                CreateChangeNode("w:rPrChange", xmlEl, author);
+                CreateChangeNode("w:rPrChange", XmlEl, author);
                 IsBold = isBold;
             }
         }
@@ -360,7 +368,7 @@ namespace TDV.Docx
         {
             if (IsItalic != isItalic)
             {
-                CreateChangeNode("w:rPrChange", xmlEl, author);
+                CreateChangeNode("w:rPrChange", XmlEl, author);
                 IsItalic = isItalic;
             }
         }
@@ -373,7 +381,7 @@ namespace TDV.Docx
         {
             if (IsStrike != isStrike)
             {
-                CreateChangeNode("w:rPrChange", xmlEl, author);
+                CreateChangeNode("w:rPrChange", XmlEl, author);
                 IsStrike = isStrike;
             }
         }
@@ -386,7 +394,7 @@ namespace TDV.Docx
         {
             if (Underline != underline)
             {
-                CreateChangeNode("w:rPrChange", xmlEl, author);
+                CreateChangeNode("w:rPrChange", XmlEl, author);
                 Underline = underline;
             }
         }
@@ -399,7 +407,7 @@ namespace TDV.Docx
         {
             if (Highlight != highlight)
             {
-                CreateChangeNode("w:rPrChange", xmlEl, author);
+                CreateChangeNode("w:rPrChange", XmlEl, author);
                 Highlight = highlight;
             }
         }
@@ -407,7 +415,7 @@ namespace TDV.Docx
         {
             if (!(string.IsNullOrEmpty(Color) && color=="black") && Color != color)
             {
-                CreateChangeNode("w:rPrChange", xmlEl, author);
+                CreateChangeNode("w:rPrChange", XmlEl, author);
                 Color = color;
             }
         }
@@ -416,7 +424,7 @@ namespace TDV.Docx
         {
             get
             {
-                XmlElement fontNode = (XmlElement)xmlEl.SelectSingleNode("w:rFonts", nsmgr);
+                XmlElement fontNode = (XmlElement)XmlEl.SelectSingleNode("w:rFonts", Nsmgr);
                 if (fontNode != null)
                 {
                     if (fontNode.HasAttribute("w:ascii"))
@@ -426,9 +434,9 @@ namespace TDV.Docx
                     if (fontNode.HasAttribute("w:ascii"))
                         return fontNode.GetAttribute("w:cs");
                 }
-                if (style != null)
+                if (Style != null)
                 {
-                    RProp styleRProp = style.GetStyleProp<RProp>();
+                    RProp styleRProp = Style.GetStyleProp<RProp>();
                     if (styleRProp != null)
                         return styleRProp.Font;
                 }
@@ -436,16 +444,16 @@ namespace TDV.Docx
             }
             set
             {
-                XmlElement fontNode = (XmlElement)xmlEl.SelectSingleNode("w:rFonts", nsmgr);
+                XmlElement fontNode = (XmlElement)XmlEl.SelectSingleNode("w:rFonts", Nsmgr);
                 if (fontNode == null)
                 {
-                    fontNode = xmlDoc.CreateElement("w", "rFonts", xmlDoc.DocumentElement.NamespaceURI);
-                    xmlEl.AppendChild(fontNode);
+                    fontNode = XmlDoc.CreateElement("w", "rFonts", XmlDoc.DocumentElement.NamespaceURI);
+                    XmlEl.AppendChild(fontNode);
                 }
                 //var attributes = xmlEl.SelectSingleNode("w:rFonts", nsmgr).Attributes;
-                fontNode.SetAttribute("ascii", xmlEl.NamespaceURI, value);
-                fontNode.SetAttribute("hAnsi", xmlEl.NamespaceURI, value);
-                fontNode.SetAttribute("cs", xmlEl.NamespaceURI, value);
+                fontNode.SetAttribute("ascii", XmlEl.NamespaceURI, value);
+                fontNode.SetAttribute("hAnsi", XmlEl.NamespaceURI, value);
+                fontNode.SetAttribute("cs", XmlEl.NamespaceURI, value);
             }
 
         }
@@ -457,72 +465,46 @@ namespace TDV.Docx
         {
             get
             {
-                bool result = childNodes.Where(x => x.xmlEl.Name == "noProof").Any();
-                return result;
+                return FindChild<NoProof>() != null;
             }
             set
             {
                 if (value)
-                    if (!childNodes.Where(x => x.xmlEl.Name == "noProof").Any())
-                    {
-                        xmlEl.AppendChild(xmlDoc.CreateElement("w:noProof", xmlDoc.DocumentElement.NamespaceURI));
-                    }
-                    else
-                    {
-                        XmlElement forDel = childNodes.Where(x => x.xmlEl.Name == "noProof").FirstOrDefault()?.xmlEl;
-                        if (forDel != null)
-                            xmlDoc.RemoveChild(forDel);
-                    }
+                    FindChildOrCreate<NoProof>();
+                else
+                    FindChild<NoProof>()?.Delete();
             }
         }
 
 
-        public Style style
+        public Style Style
         {
             get
             {
-                XmlElement n = (XmlElement)xmlEl.SelectSingleNode("w:rStyle", nsmgr);
-                if (n != null)
-                {
-                    string styleId = null;
-                    styleId = n.GetAttribute("w:val");
-                    if (!string.IsNullOrEmpty(styleId))
-                    {
-                        DocxDocument docx = GetDocxDocument();
-                        return docx.styles.GetStyleById(styleId);
-                    }
-                }
-                return null;
+                return FindChild<RStyleNode>()?.Style??null;
             }
-            /*set
+            set
             {
-                XmlElement fontNode = (XmlElement)xmlEl.SelectSingleNode("w:rFonts", nsmgr);
-                if (fontNode == null)
-                {
-                    fontNode = doc.CreateElement("w", "rFonts", doc.DocumentElement.NamespaceURI);
-                    xmlEl.AppendChild(fontNode);
-                }
-                //var attributes = xmlEl.SelectSingleNode("w:rFonts", nsmgr).Attributes;
-                fontNode.SetAttribute("ascii", xmlEl.NamespaceURI, value);
-                fontNode.SetAttribute("hAnsi", xmlEl.NamespaceURI, value);
-                fontNode.SetAttribute("cs", xmlEl.NamespaceURI, value);
-            }*/
+                FindChildOrCreate<RStyleNode>().Style = value;
+            }
         }
 
         public double? FontSize
         {
             get
             {
-                XmlElement szEl = (XmlElement)xmlEl.SelectSingleNode("w:sz", nsmgr);
-                XmlElement szCsEl = (XmlElement)xmlEl.SelectSingleNode("w:szCs", nsmgr);
-                if ((szEl ?? szCsEl) != null)
+                Sz sz = FindChild<Sz>();
+                SzCs szCs = FindChild<SzCs>();
+                if (sz!=null)
                 {
-                    var attributes = (szEl ?? szCsEl).Attributes;
-                    return double.Parse(attributes["w:val"].Value) / 2;
+                    return sz.Value / 2;
+                }else if(szCs != null)
+                {
+                    return szCs.Value / 2;
                 }
-                if (style != null)
+                if (Style != null)
                 {
-                    RProp styleRProp = style.GetStyleProp<RProp>();
+                    RProp styleRProp = Style.GetStyleProp<RProp>();
                     if (styleRProp != null)
                         return styleRProp.FontSize;
                 }
@@ -530,20 +512,17 @@ namespace TDV.Docx
             }
             set
             {
-                XmlElement szEl = (XmlElement)xmlEl.SelectSingleNode("w:sz", nsmgr);
-                XmlElement szCsEl = (XmlElement)xmlEl.SelectSingleNode("w:szCs", nsmgr);
-                if (szEl == null)
+                if(value==null)
                 {
-                    szEl = xmlDoc.CreateElement("w", "sz", xmlEl.NamespaceURI);
-                    xmlEl.AppendChild(szEl);
+                    FindChild<Sz>()?.Delete();
+                    FindChild<SzCs>()?.Delete();
+
+                }   else
+                { 
+                    FindChildOrCreate<Sz>().Value = value * 2;
+                    FindChildOrCreate<SzCs>().Value = value * 2;
                 }
-                if (szCsEl == null)
-                {
-                    szCsEl = xmlDoc.CreateElement("w", "szCs", xmlEl.NamespaceURI);
-                    xmlEl.AppendChild(szCsEl);
-                }
-                szEl.SetAttribute("val", xmlEl.NamespaceURI, (value * 2).ToString());
-                szCsEl.SetAttribute("val", xmlEl.NamespaceURI, (value * 2).ToString());
+
             }
         }
 
@@ -551,12 +530,12 @@ namespace TDV.Docx
         {
             get
             {
-                var b = xmlEl.SelectSingleNode("w:b", nsmgr);
+                var b = XmlEl.SelectSingleNode("w:b", Nsmgr);
                 if (b != null)
                     return true;
-                if (style != null)
+                if (Style != null)
                 {
-                    RProp styleRProp = style.GetStyleProp<RProp>();
+                    RProp styleRProp = Style.GetStyleProp<RProp>();
                     if (styleRProp != null)
                         return styleRProp.IsBold;
                 }
@@ -564,13 +543,13 @@ namespace TDV.Docx
             }
             set
             {
-                XmlElement bNode = (XmlElement)xmlEl.SelectSingleNode("w:b", nsmgr);
+                XmlElement bNode = (XmlElement)XmlEl.SelectSingleNode("w:b", Nsmgr);
                 if (value == false && bNode != null)
-                    xmlEl.RemoveChild(bNode);
+                    XmlEl.RemoveChild(bNode);
                 if (value == true && bNode == null)
                 {
-                    bNode = xmlDoc.CreateElement("w", "b", xmlEl.NamespaceURI);
-                    xmlEl.AppendChild(bNode);
+                    bNode = XmlDoc.CreateElement("w", "b", XmlEl.NamespaceURI);
+                    XmlEl.AppendChild(bNode);
                 }
             }
         }
@@ -579,12 +558,12 @@ namespace TDV.Docx
         {
             get
             {
-                var b = xmlEl.SelectSingleNode("w:i", nsmgr);
+                var b = XmlEl.SelectSingleNode("w:i", Nsmgr);
                 if (b != null)
                     return true;
-                if (style != null)
+                if (Style != null)
                 {
-                    RProp styleRProp = style.GetStyleProp<RProp>();
+                    RProp styleRProp = Style.GetStyleProp<RProp>();
                     if (styleRProp != null)
                         return styleRProp.IsItalic;
                 }
@@ -592,16 +571,16 @@ namespace TDV.Docx
             }
             set
             {
-                XmlElement iNode = (XmlElement)xmlEl.SelectSingleNode("w:i", nsmgr);
+                XmlElement iNode = (XmlElement)XmlEl.SelectSingleNode("w:i", Nsmgr);
                 if (value == false && iNode != null)
                 {
-                    xmlEl.RemoveChild(iNode);
+                    XmlEl.RemoveChild(iNode);
                 }
 
                 if (value == true && iNode == null)
                 {
-                    iNode = xmlDoc.CreateElement("w", "i", xmlEl.NamespaceURI);
-                    xmlEl.AppendChild(iNode);
+                    iNode = XmlDoc.CreateElement("w", "i", XmlEl.NamespaceURI);
+                    XmlEl.AppendChild(iNode);
                 }
             }
         }
@@ -613,12 +592,12 @@ namespace TDV.Docx
         {
             get
             {
-                var n = xmlEl.SelectSingleNode("w:strike", nsmgr);
+                var n = XmlEl.SelectSingleNode("w:strike", Nsmgr);
                 if (n != null)
                     return true;
-                if (style != null)
+                if (Style != null)
                 {
-                    RProp styleRProp = style.GetStyleProp<RProp>();
+                    RProp styleRProp = Style.GetStyleProp<RProp>();
                     if (styleRProp != null)
                         return styleRProp.IsStrike;
                 }
@@ -626,16 +605,16 @@ namespace TDV.Docx
             }
             set
             {
-                XmlElement n = (XmlElement)xmlEl.SelectSingleNode("w:strike", nsmgr);
+                XmlElement n = (XmlElement)XmlEl.SelectSingleNode("w:strike", Nsmgr);
                 if (value == false && n != null)
                 {
-                    xmlEl.RemoveChild(n);
+                    XmlEl.RemoveChild(n);
                 }
 
                 if (value == true && n == null)
                 {
-                    n = xmlDoc.CreateElement("w", "strike", xmlEl.NamespaceURI);
-                    xmlEl.AppendChild(n);
+                    n = XmlDoc.CreateElement("w", "strike", XmlEl.NamespaceURI);
+                    XmlEl.AppendChild(n);
                 }
             }
         }
@@ -644,42 +623,17 @@ namespace TDV.Docx
         {
             get
             {
-                var n = (XmlElement)xmlEl.SelectSingleNode("w:u", nsmgr);
-                if (n != null)
-                {
-                    if (n.GetAttribute("w:val") != null)
-                    {
-                        LINE_TYPE result = LINE_TYPE.UNKNOWN;
-                        Enum.TryParse<LINE_TYPE>(n.GetAttribute("w:val"), true, out result);
-                        return result;
-                    }
-                }
-
-                if (style != null)
-                {
-                    RProp styleRProp = style.GetStyleProp<RProp>();
-                    if (styleRProp != null)
-                        return styleRProp.Underline;
-                }
-                return LINE_TYPE.NONE;
+                U u = FindChild<U>();
+                if (u != null)
+                    return u.Value;
+                return Style?.FindChild<RProp>().Underline ?? LINE_TYPE.NONE;
             }
             set
             {
-                XmlElement n = (XmlElement)xmlEl.SelectSingleNode("w:u", nsmgr);
-                if (value == LINE_TYPE.NONE && n != null)
-                { 
-                    xmlEl.RemoveChild(n);
-                    return;
-                }
-
-                if (value != LINE_TYPE.UNKNOWN)
-                {
-                    if (n == null)
-                        n = xmlDoc.CreateElement("w", "u", xmlEl.NamespaceURI);
-                    
-                    n.SetAttribute("val", xmlEl.NamespaceURI, value.ToString().ToLower());
-                    xmlEl.AppendChild(n);
-                }
+                if (value == LINE_TYPE.NONE)
+                    FindChild<U>()?.Delete();
+                else
+                    FindChildOrCreate<U>().Value = value;
             }
         }
         /// <summary>
@@ -689,12 +643,12 @@ namespace TDV.Docx
         {
             get
             {
-                var n = xmlEl.SelectSingleNode("w:highlight", nsmgr);
+                var n = XmlEl.SelectSingleNode("w:highlight", Nsmgr);
                 if (n != null && n.Attributes["w:val"] != null)
                     return n.Attributes["w:val"].Value;
-                if (style != null)
+                if (Style != null)
                 {
-                    RProp styleRProp = style.GetStyleProp<RProp>();
+                    RProp styleRProp = Style.GetStyleProp<RProp>();
                     if (styleRProp != null)
                         return styleRProp.Highlight;
                 }
@@ -702,16 +656,16 @@ namespace TDV.Docx
             }
             set
             {
-                XmlElement n = (XmlElement)xmlEl.SelectSingleNode("w:highlight", nsmgr);
+                XmlElement n = (XmlElement)XmlEl.SelectSingleNode("w:highlight", Nsmgr);
                 if (String.IsNullOrEmpty(value) && n != null)
-                    xmlEl.RemoveChild(n);
+                    XmlEl.RemoveChild(n);
 
                 
                 if (n == null)
-                    n = xmlDoc.CreateElement("w", "highlight", xmlEl.NamespaceURI);
+                    n = XmlDoc.CreateElement("w", "highlight", XmlEl.NamespaceURI);
 
-                n.SetAttribute("val", xmlEl.NamespaceURI, string.IsNullOrEmpty(value) ? "auto" : value);
-                xmlEl.AppendChild(n);
+                n.SetAttribute("val", XmlEl.NamespaceURI, string.IsNullOrEmpty(value) ? "auto" : value);
+                XmlEl.AppendChild(n);
             }
         }
 
@@ -722,13 +676,13 @@ namespace TDV.Docx
         {
             get
             {
-                var n = xmlEl.SelectSingleNode("w:color", nsmgr);
+                var n = XmlEl.SelectSingleNode("w:color", Nsmgr);
                 if (n != null && n.Attributes["w:val"] != null)
                     return n.Attributes["w:val"].Value;
                 
-                if (style != null)
+                if (Style != null)
                 {
-                    RProp styleRProp = style.GetStyleProp<RProp>();
+                    RProp styleRProp = Style.GetStyleProp<RProp>();
                     if (styleRProp != null)
                         return styleRProp.Color;
                 }
@@ -736,18 +690,26 @@ namespace TDV.Docx
             }
             set
             {
-                XmlElement n = (XmlElement)xmlEl.SelectSingleNode("w:color", nsmgr);
+                XmlElement n = (XmlElement)XmlEl.SelectSingleNode("w:color", Nsmgr);
                 if (String.IsNullOrEmpty(value) && n != null)
-                    xmlEl.RemoveChild(n);
+                    XmlEl.RemoveChild(n);
 
                 if (n == null)
-                    n = xmlDoc.CreateElement("w", "color", xmlEl.NamespaceURI);
+                    n = XmlDoc.CreateElement("w", "color", XmlEl.NamespaceURI);
 
-                n.SetAttribute("val", xmlEl.NamespaceURI, string.IsNullOrEmpty(value)?"auto":value);
-                xmlEl.AppendChild(n);
+                n.SetAttribute("val", XmlEl.NamespaceURI, string.IsNullOrEmpty(value)?"auto":value);
+                XmlEl.AppendChild(n);
             }
         }
     }
+
+    public class NoProof : Node
+    {
+        public NoProof() : base("w:noProof") { }
+        public NoProof(Node parent) : base(parent, "w:noProof") { }
+        public NoProof(XmlElement xmlElement, Node parent) : base(xmlElement, parent, "w:noProof") { }
+    }
+
     public class Highlight : Node
     {
         public Highlight() : base("w:highlight") { }
@@ -766,11 +728,11 @@ namespace TDV.Docx
         }
     }
 
-        /// <summary>
-        /// Отсупы
-        /// значения указывать в сантиметрах
-        /// </summary>
-        public class Ind : Node
+    /// <summary>
+    /// Отсупы
+    /// 
+    /// </summary>
+    public class Ind : Node
     {
         public Ind() : base("w:ind") { }
         public Ind(Node parent) : base(parent, "w:ind") { }
@@ -779,12 +741,12 @@ namespace TDV.Docx
         /// <summary>
         /// Отступ первой строки. В сантиметрах
         /// </summary>
-        public float firstLine
+        public float FirstLine
         {
             get
             {
-                if (xmlEl.Attributes["w:firstLine"] != null)
-                    return float.Parse(xmlEl.Attributes["w:firstLine"].Value) / 567;
+                if (XmlEl.Attributes["w:firstLine"] != null)
+                    return float.Parse(XmlEl.Attributes["w:firstLine"].Value) / 567;
                 return 0;
             }
             set
@@ -793,26 +755,26 @@ namespace TDV.Docx
                     return;
                 if (value == 0)
                 {
-                    xmlEl.RemoveAttribute("firstLine", xmlEl.NamespaceURI);
+                    XmlEl.RemoveAttribute("firstLine", XmlEl.NamespaceURI);
                 }
                 else
                 {
-                    xmlEl.RemoveAttribute("hanging", xmlEl.NamespaceURI);
-                    xmlEl.SetAttribute("firstLine", xmlEl.NamespaceURI, ((int)(value * 567)).ToString());
+                    XmlEl.RemoveAttribute("hanging", XmlEl.NamespaceURI);
+                    XmlEl.SetAttribute("firstLine", XmlEl.NamespaceURI, ((int)(value * 567)).ToString());
                 }
 
             }
         }
 
 
-        public float left
+        public float Left
         {
             get
             {
-                if (xmlEl.Attributes["w:left"] != null)
-                    return float.Parse(xmlEl.Attributes["w:left"].Value) / 567;
-                if (xmlEl.Attributes["w:start"] != null)
-                    return float.Parse(xmlEl.Attributes["w:start"].Value) / 567;
+                if (XmlEl.Attributes["w:left"] != null)
+                    return float.Parse(XmlEl.Attributes["w:left"].Value) / 567;
+                if (XmlEl.Attributes["w:start"] != null)
+                    return float.Parse(XmlEl.Attributes["w:start"].Value) / 567;
                 return 0;
             }
             set
@@ -821,21 +783,21 @@ namespace TDV.Docx
                     return;
                 if (value == 0)
                 {
-                    xmlEl.RemoveAttribute("left", xmlEl.NamespaceURI);
-                    xmlEl.RemoveAttribute("start", xmlEl.NamespaceURI);
+                    XmlEl.RemoveAttribute("left", XmlEl.NamespaceURI);
+                    XmlEl.RemoveAttribute("start", XmlEl.NamespaceURI);
                 }
                 else
-                    xmlEl.SetAttribute("left", xmlEl.NamespaceURI, ((int)(value * 567)).ToString());
+                    XmlEl.SetAttribute("left", XmlEl.NamespaceURI, ((int)(value * 567)).ToString());
             }
         }
-        public float right
+        public float Right
         {
             get
             {
-                if (xmlEl.Attributes["w:right"] != null)
-                    return float.Parse(xmlEl.Attributes["w:right"].Value) / 567;
-                if (xmlEl.Attributes["w:end"] != null)
-                    return float.Parse(xmlEl.Attributes["w:end"].Value) / 567;
+                if (XmlEl.Attributes["w:right"] != null)
+                    return float.Parse(XmlEl.Attributes["w:right"].Value) / 567;
+                if (XmlEl.Attributes["w:end"] != null)
+                    return float.Parse(XmlEl.Attributes["w:end"].Value) / 567;
                 return 0;
             }
             set
@@ -844,23 +806,23 @@ namespace TDV.Docx
                     return;
                 if (value == 0)
                 {
-                    xmlEl.RemoveAttribute("right", xmlEl.NamespaceURI);
-                    xmlEl.RemoveAttribute("end", xmlEl.NamespaceURI);
+                    XmlEl.RemoveAttribute("right", XmlEl.NamespaceURI);
+                    XmlEl.RemoveAttribute("end", XmlEl.NamespaceURI);
                 }
                 else
-                    xmlEl.SetAttribute("end", xmlEl.NamespaceURI, ((int)(value * 567)).ToString());
+                    XmlEl.SetAttribute("end", XmlEl.NamespaceURI, ((int)(value * 567)).ToString());
             }
         }
 
         /// <summary>
         /// Отступ первой строки для удаления. Исключает тег firstLine. В сантиметрах
         /// </summary>
-        public float hanging
+        public float Hanging
         {
             get
             {
-                if (xmlEl.Attributes["w:hanging"] != null)
-                    return float.Parse(xmlEl.Attributes["w:hanging"].Value) / 567;
+                if (XmlEl.Attributes["w:hanging"] != null)
+                    return float.Parse(XmlEl.Attributes["w:hanging"].Value) / 567;
                 return 0;
             }
             set
@@ -869,12 +831,12 @@ namespace TDV.Docx
                     return;
                 if (value == 0)
                 {
-                    xmlEl.RemoveAttribute("hanging", xmlEl.NamespaceURI);
+                    XmlEl.RemoveAttribute("hanging", XmlEl.NamespaceURI);
                 }
                 else
                 {
-                    xmlEl.RemoveAttribute("firstLine", xmlEl.NamespaceURI);
-                    xmlEl.SetAttribute("hanging", xmlEl.NamespaceURI, ((int)(value * 567)).ToString());
+                    XmlEl.RemoveAttribute("firstLine", XmlEl.NamespaceURI);
+                    XmlEl.SetAttribute("hanging", XmlEl.NamespaceURI, ((int)(value * 567)).ToString());
                 }
             }
         }
@@ -889,18 +851,18 @@ namespace TDV.Docx
         /// <summary>
         /// Межстрочный интервал.
         /// </summary>
-        public float line
+        public float Line
         {
             get
             {
-                if (xmlEl.Attributes["w:line"] != null)
-                    return float.Parse(xmlEl.Attributes["w:line"].Value) / 240;
+                if (XmlEl.Attributes["w:line"] != null)
+                    return float.Parse(XmlEl.Attributes["w:line"].Value) / 240;
                 return 0;
             }
             set
             {
                 if (value != -1)
-                    xmlEl.SetAttribute("line", xmlEl.NamespaceURI, ((int)(value * 240)).ToString());
+                    XmlEl.SetAttribute("line", XmlEl.NamespaceURI, ((int)(value * 240)).ToString());
             }
         }
 
@@ -908,18 +870,18 @@ namespace TDV.Docx
         /// Отступ перед абзацем
         /// Значение в пт (как в MS Word)
         /// </summary>
-        public float before
+        public float Before
         {
             get
             {
-                if (xmlEl.Attributes["w:before"] != null)
-                    return float.Parse(xmlEl.Attributes["w:before"].Value) / 20;
+                if (XmlEl.Attributes["w:before"] != null)
+                    return float.Parse(XmlEl.Attributes["w:before"].Value) / 20;
                 return 0;
             }
             set
             {
                 if (value != -1)
-                    xmlEl.SetAttribute("before", xmlEl.NamespaceURI, ((int)(value * 20)).ToString());
+                    XmlEl.SetAttribute("before", XmlEl.NamespaceURI, ((int)(value * 20)).ToString());
             }
         }
 
@@ -927,18 +889,18 @@ namespace TDV.Docx
         /// Отступ после абзаца
         /// Значение в пт (как в MS Word)
         /// </summary>
-        public float after
+        public float After
         {
             get
             {
-                if (xmlEl.Attributes["w:after"] != null)
-                    return float.Parse(xmlEl.Attributes["w:after"].Value) / 20;
+                if (XmlEl.Attributes["w:after"] != null)
+                    return float.Parse(XmlEl.Attributes["w:after"].Value) / 20;
                 return 0;
             }
             set
             {
                 if (value != -1)
-                    xmlEl.SetAttribute("after", xmlEl.NamespaceURI, ((int)(value * 20)).ToString());
+                    XmlEl.SetAttribute("after", XmlEl.NamespaceURI, ((int)(value * 20)).ToString());
             }
         }
     }
@@ -965,50 +927,44 @@ namespace TDV.Docx
         public void SetStyle(PStyle style)
         {
             HorizontalAlign= style.horizontalAlign;
-            ind.firstLine = style.indentingFirtsLine;
-            ind.hanging = style.indentingHanging;
-            ind.left = style.indentingleft;
-            ind.right = style.indentingRight;
-            spacing.before = style.spacingBefore;
-            spacing.after = style.spacingAfter;
-            spacing.line = style.spacingLine;
-            pBdr.Left = style.borderLeft;
-            pBdr.Right = style.borderRight;
-            pBdr.Top = style.borderTop;
-            pBdr.Bottom = style.borderBottom;
-            pBdr.Between = style.borderBetween;
-            pBdr.Bar= style.borderBar;
+            Ind.FirstLine = style.indentingFirtsLine;
+            Ind.Hanging = style.indentingHanging;
+            Ind.Left = style.indentingleft;
+            Ind.Right = style.indentingRight;
+            Spacing.Before = style.spacingBefore;
+            Spacing.After = style.spacingAfter;
+            Spacing.Line = style.spacingLine;
+            PBorder.Left = style.borderLeft;
+            PBorder.Right = style.borderRight;
+            PBorder.Top = style.borderTop;
+            PBorder.Bottom = style.borderBottom;
+            PBorder.Between = style.borderBetween;
+            PBorder.Bar= style.borderBar;
         }
 
         public bool HasSectPr
         {
             get
             {
-                return childNodes.Where(x => x is SectProp).Any();
+                return ChildNodes.Where(x => x is SectProp).Any();
             }
         }
 
-        public Ind ind
+        public Ind Ind
         {
             get
             {
-                Ind result = childNodes.Where(x => x is Ind).Select(x => (Ind)x).FirstOrDefault();
-                if (result == null)
-                    result = new Ind(this);
-                return result;
+                return FindChildOrCreate<Ind>();
             }
         }
         /// <summary>
         /// Окончание секции. Следующая секция всегда начинается с новой страницы
         /// </summary>
-        public SectProp sectPr
+        public SectProp SectPr
         {
             get
             {
-                SectProp result = childNodes.Where(x => x is SectProp).Select(x => (SectProp)x).FirstOrDefault();
-                if (result == null)
-                    result = new SectProp(this);
-                return result;
+                return FindChildOrCreate<SectProp>();
             }
         }
 
@@ -1019,15 +975,14 @@ namespace TDV.Docx
         {
             get
             {
-                return childNodes.Where(x => x is NumPr).Any();
+                return FindChild<NumPr>()!=null;
             }
         }
         public NumPr NumPr
         {
             get
             {
-                NumPr result = childNodes.Where(x => x is NumPr).Select(x => (NumPr)x).FirstOrDefault();
-                return result;
+                return FindChild<NumPr>();
             }
 
         }
@@ -1042,25 +997,25 @@ namespace TDV.Docx
         /// <param name="author"></param>
         public void CompareInd(float firtsLine, float hanging = 0, float left = 0, float right = 0, string author = "TDV")
         {
-            if (ind.firstLine != firtsLine || ind.hanging != hanging || ind.left != left || ind.right != right)
+            if (Ind.FirstLine != firtsLine || Ind.Hanging != hanging || Ind.Left != left || Ind.Right != right)
             {
-                CreateChangeNode("w:pPrChange", xmlEl, author);
-                ind.firstLine = firtsLine;
-                ind.hanging = hanging;
-                ind.left = left;
-                ind.right = right;
+                CreateChangeNode("w:pPrChange", XmlEl, author);
+                Ind.FirstLine = firtsLine;
+                Ind.Hanging = hanging;
+                Ind.Left = left;
+                Ind.Right = right;
             }
         }
 
 
         public void CompareBorder(Border left, Border right, Border top, Border bottom, Border between, Border bar, string author = "TDV")
         {
-            pBdr.CompareBorder(BORDER.LEFT, left, author);
-            pBdr.CompareBorder(BORDER.RIGHT, right, author);
-            pBdr.CompareBorder(BORDER.TOP, top, author);
-            pBdr.CompareBorder(BORDER.BOTTOM, bottom, author);
-            pBdr.CompareBorder(BORDER.BETWEEN, between, author);
-            pBdr.CompareBorder(BORDER.BAR, bar, author);
+            PBorder.CompareBorder(BORDER.LEFT, left, author);
+            PBorder.CompareBorder(BORDER.RIGHT, right, author);
+            PBorder.CompareBorder(BORDER.TOP, top, author);
+            PBorder.CompareBorder(BORDER.BOTTOM, bottom, author);
+            PBorder.CompareBorder(BORDER.BETWEEN, between, author);
+            PBorder.CompareBorder(BORDER.BAR, bar, author);
         }
 
         /// <summary>
@@ -1076,12 +1031,12 @@ namespace TDV.Docx
            
             if(HasNumPr && numId!=NumPr.NumId.Value)
             {
-                CreateChangeNode("w:pPrChange", (XmlElement)xmlEl, author);
+                CreateChangeNode("w:pPrChange", (XmlElement)XmlEl, author);
                 NumPr.Level = level;
                 NumPr.NumId.Value = (int)numId;
             } else if(!HasNumPr && numId!=null)
             {
-                CreateChangeNode("w:pPrChange", (XmlElement)xmlEl, author);
+                CreateChangeNode("w:pPrChange", (XmlElement)XmlEl, author);
                 NewNodeLast<NumPr>();
                 NumPr.Level = level;
                 NumPr.NumId.Value = (int)numId;
@@ -1091,47 +1046,52 @@ namespace TDV.Docx
         /// <summary>
         /// отступы
         /// </summary>
-        public Spacing spacing
+        public Spacing Spacing
         {
             get
             {
-                Spacing result = childNodes.Where(x => x is Spacing).Select(x => (Spacing)x).FirstOrDefault();
-                if (result == null)
-                    result = new Spacing(this);
-                return result;
+                return FindChildOrCreate<Spacing>();
             }
         }
         public void CompareSpacing(float before = -1, float after = -1, float line = -1, string author = "TDV")
         {
-            if (spacing.before != before || spacing.after != after || spacing.line != line)
+            if (Spacing.Before != before || Spacing.After != after || Spacing.Line != line)
             {
-                CreateChangeNode("w:pPrChange", xmlEl, author);
-                spacing.before = before;
-                spacing.after = after;
-                spacing.line = line;
+                CreateChangeNode("w:pPrChange", XmlEl, author);
+                Spacing.Before = before;
+                Spacing.After = after;
+                Spacing.Line = line;
             }
         }
 
 
-        public RProp rPr
+        public RProp RProp
+
+
         {
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
             get
             {
-                RProp result = childNodes.Where(x => x is RProp).Select(x => (RProp)x).FirstOrDefault();
-                if (result == null)
-                    result = new RProp(this);
-                return result;
+                return FindChildOrCreate<RProp>();
             }
         }
 
-        public PBorder pBdr
+        public PBorder PBorder
         {
             get
             {
-                PBorder result = childNodes.Where(x => x is PBorder).Select(x => (PBorder)x).FirstOrDefault();
-                if (result == null)
-                    result = new PBorder(this);
-                return result;
+                return FindChildOrCreate<PBorder>();
             }
         }
 
@@ -1140,7 +1100,7 @@ namespace TDV.Docx
         {
             if (HorizontalAlign != horizontalAlign)
             {
-                CreateChangeNode("w:pPrChange", xmlEl, author);
+                CreateChangeNode("w:pPrChange", XmlEl, author);
                 HorizontalAlign = horizontalAlign;
             }
         }
@@ -1169,13 +1129,7 @@ namespace TDV.Docx
         {
             get
             {
-                RProp rPr = (RProp)childNodes.Where(x => x is RProp).FirstOrDefault();
-                if (rPr != null)
-                {
-                    if (rPr.IsBold)
-                        return true;
-                }
-                return false;
+                return FindChild<RProp>()?.IsBold ?? false;
             }
         }
 
@@ -1183,13 +1137,7 @@ namespace TDV.Docx
         {
             get
             {
-                RProp rPr = (RProp)childNodes.Where(x => x is RProp).FirstOrDefault();
-                if (rPr != null)
-                {
-                    if (rPr.IsItalic)
-                        return true;
-                }
-                return false;
+                return FindChild<RProp>()?.IsItalic ?? false;
             }
         }
     }
@@ -1206,7 +1154,7 @@ namespace TDV.Docx
         {
             get
             {
-                switch (xmlEl.GetAttribute("w:val"))
+                switch (XmlEl.GetAttribute("w:val"))
                 {
                     case "left":
                         return HORIZONTAL_ALIGN.LEFT;
@@ -1225,16 +1173,16 @@ namespace TDV.Docx
                 switch (value)
                 {
                     case HORIZONTAL_ALIGN.LEFT:
-                        xmlEl.SetAttribute("val", xmlEl.NamespaceURI, "left");
+                        XmlEl.SetAttribute("val", XmlEl.NamespaceURI, "left");
                         break;
                     case HORIZONTAL_ALIGN.CENTER:
-                        xmlEl.SetAttribute("val", xmlEl.NamespaceURI, "center");
+                        XmlEl.SetAttribute("val", XmlEl.NamespaceURI, "center");
                         break;
                     case HORIZONTAL_ALIGN.RIGHT:
-                        xmlEl.SetAttribute("val", xmlEl.NamespaceURI, "right");
+                        XmlEl.SetAttribute("val", XmlEl.NamespaceURI, "right");
                         break;
                     case HORIZONTAL_ALIGN.BOTH:
-                        xmlEl.SetAttribute("val", xmlEl.NamespaceURI, "both");
+                        XmlEl.SetAttribute("val", XmlEl.NamespaceURI, "both");
                         break;
                     case HORIZONTAL_ALIGN.NONE:
                         Delete();
@@ -1254,22 +1202,62 @@ namespace TDV.Docx
             set { Value = value; }
         }
     }
-        public class R : Node
+    public class R : Node
     {
         public R() : base("w:r") { }
         public R(Node parent) : base(parent, "w:r") { }
         public R(XmlElement xmlElement, Node parent) : base(xmlElement, parent, "w:r") { }
 
-        public RProp rPr
+        public string RsidR
         {
             get
             {
-                RProp result = childNodes.Where(x => x is RProp).Select(x => (RProp)x).FirstOrDefault();
-                if (result == null)
+                try
                 {
-                    result = new RProp(this);
+                    return GetAttribute("w:rsidR");
                 }
+                catch (KeyNotFoundException)
+                {
+                    return null;
+                }
+            }
+            set
+            {
+                if (string.IsNullOrEmpty(value))
+                    RemoveAttribute("w:rsidR");
+                else
+                    SetAttribute("w:rsidR", value);
+            }
+        }
+
+        public Size Width
+        {
+            get
+            {
+                Size result = new Size(0);
+                FontStyle style = FontStyle.Regular;
+                if (RProp.IsBold)
+                    style = FontStyle.Bold;
+                else if (RProp.IsItalic)
+                    style = FontStyle.Italic;
+                Font f = new Font(RProp.Font, (float)(RProp.FontSize??11),style);
+                result.ValuePoints = (int)(TextRenderer.MeasureText(Text, f).Width*14.046d);
                 return result;
+            }
+        }
+
+        public RProp RProp
+        {
+            get
+            {
+                return FindChildOrCreate<RProp>();
+            }
+            set
+            {
+                RProp rProp = FindChild<RProp>();
+                if (rProp != null)
+                    XmlEl.RemoveChild(XmlEl);
+                XmlEl.AppendChild(value.CopyXmlElement());
             }
         }
 
@@ -1279,26 +1267,27 @@ namespace TDV.Docx
         /// </summary>
         public void CorrectDel(string author = "TDV")
         {
-            Del delNode = parent.FindChild<Del>();
-            if (delNode == null)
-                delNode = parent.NewNodeLast<Del>();
+            Del delNode = Parent.NewNodeBefore<Del>(XmlEl);
             delNode.Author = author;
-            XmlElement del = xmlDoc.CreateElement("w","delText", xmlEl.NamespaceURI);
-            del.InnerText = Text;
-            xmlEl.AppendChild(del);
-            XmlElement tForDel = (XmlElement)xmlEl.SelectSingleNode("w:t", nsmgr);
-            if(tForDel!=null)
-                xmlEl.RemoveChild(tForDel);
+
+            //delNode.XmlEl.AppendChild(CopyXmlElement());
+            string text = Text;
             this.MoveTo(delNode);
+            delNode.FindChild<R>().FindChildOrCreate<DelText>().Value = text;
+            delNode.FindChild<R>().FindChild<T>()?.Delete();
+
+            
+            //Delete();
         }
 
         public void CorrectSetText(string newText, string author = "TDV")
         {
             if (Text != newText)
             {
-                Ins newIns = parent.NewNodeAfter<Ins>(xmlEl);
+                Ins newIns = Parent.NewNodeAfter<Ins>(XmlEl);
                 newIns.Author = author;
                 R newRnode = newIns.NewNodeLast<R>();
+                newRnode.RProp = RProp;
                 newRnode.Text = newText;
                 CorrectDel(author);
             }
@@ -1324,7 +1313,9 @@ namespace TDV.Docx
             }
             set
             {
-                t.xmlEl.InnerText = value;
+                if (value.StartsWith(" ") || value.EndsWith(" ") || value.Contains("  "))
+                    t.XmlSpace = XML_SPACE.PRESERVE;
+                t.Text = value;
             }
         }
 
@@ -1336,27 +1327,62 @@ namespace TDV.Docx
             }
         }
 
-        public override void InitXmlElement()
-        {
-            base.InitXmlElement();
-        }
 
         public bool IsBold
         {
-            get {return rPr.IsBold;}
+            get {return RProp.IsBold;}
         }
 
         public bool IsItalic
         {
-            get { return rPr.IsItalic; }
+            get { return RProp.IsItalic; }
         }
     }
+
+    public enum XML_SPACE { NONE, DEFAULT,PRESERVE }
+
 
     public class T : Node
     {
         public T() : base("w:t") { }
         public T(XmlElement xmlElement, Node parent) : base(xmlElement, parent, "w:t")
         { }
+
+        /// <summary>
+        /// preserve,default
+        /// </summary>
+        public XML_SPACE XmlSpace
+        {
+            get
+            {
+                if (!HasAttribute("xml:space"))
+                    return XML_SPACE.NONE;
+                switch (GetAttribute("xml:space"))
+                {
+                    case "preserve":
+                        return XML_SPACE.PRESERVE;
+                    case "default":
+                        return XML_SPACE.DEFAULT;
+                }
+                throw new NotImplementedException();
+            }
+            set
+            {
+                switch (value)
+                {
+                    case XML_SPACE.DEFAULT:
+                        SetAttribute("xml:space", "default");
+                        return;
+                    case XML_SPACE.PRESERVE:
+                        SetAttribute("xml:space", "preserve");
+                        return;
+                    case XML_SPACE.NONE:
+                        RemoveAttribute("xml:space");
+                        break;
+                }
+                throw new NotImplementedException();
+            }
+        }
 
         public new string Text
         {
@@ -1366,8 +1392,8 @@ namespace TDV.Docx
             }
             set
             {
-                if (xmlEl != null)
-                    xmlEl.InnerText = value;
+                if (XmlEl != null)
+                    XmlEl.InnerText = value;
             }
         }
     }
@@ -1389,6 +1415,23 @@ namespace TDV.Docx
         public int Pos;
         public string Color;
     }
+    public class DelText : Node
+    {
+        public DelText() : base("w:delText") { }
+        public DelText(XmlElement xmlElement, Node parent) : base(xmlElement, parent, "w:delText")
+        { }
+        public string Value
+        {
+            get
+            {
+                return XmlEl.InnerText;
+            }
+            set
+            {
+                XmlEl.InnerText = value;
+            }
+        }
+    }
 
     public class Paragraph : Node
     {
@@ -1396,11 +1439,79 @@ namespace TDV.Docx
         public Paragraph(XmlElement xmlElement, Node parent) : base(xmlElement, parent, "w:p")
         { }
 
+        public string RsidR
+        {
+            get
+            {
+                try
+                {
+                    return GetAttribute("w:rsidR");
+                }
+                catch (KeyNotFoundException)
+                {
+                    return null;
+                }
+            }
+            set
+            {
+                if (string.IsNullOrEmpty(value))
+                    RemoveAttribute("w:rsidR");
+                else
+                    SetAttribute("w:rsidR", value);
+            }
+        }
+
+
+        public string RsidRPr
+        {
+            get
+            {
+                try
+                {
+                    return GetAttribute("w:rsidRPr");
+                }
+                catch (KeyNotFoundException)
+                {
+                    return null;
+                }
+            }
+            set
+            {
+                if (string.IsNullOrEmpty(value))
+                    RemoveAttribute("w:rsidRPr");
+                else
+                    SetAttribute("w:rsidRPr", value);
+            }
+        }
+        public string RsidRDefault
+        {
+            get
+            {
+                try
+                {
+                    return GetAttribute("w:rsidRDefault");
+                }
+                catch (KeyNotFoundException)
+                {
+                    return null;
+                }
+            }
+            set
+            {
+                if (string.IsNullOrEmpty(value))
+                    RemoveAttribute("w:rsidRDefault");
+                else
+                    SetAttribute("w:rsidRDefault", value);
+            }
+        }
+
+        
+
         public Size Height
         {
             get
             {
-                if (Section?.sectProp?.WorkspaceWidth == null)
+                if (Section?.SectProp?.WorkspaceWidth == null)
                     return null;
 
                 //вычислить количество полных строк
@@ -1414,7 +1525,7 @@ namespace TDV.Docx
         public override string ToString()
         {
             string result = $"";
-            foreach(R r in rNodes)
+            foreach(R r in RNodes)
             {
                 if (r.DrawingCount() > 0)
                     result += "[img]";
@@ -1429,9 +1540,9 @@ namespace TDV.Docx
             List<HighlightText> result = new List<HighlightText>();
             int pos = 0;
             HighlightText highlightText = new HighlightText(this, pos);
-            for(int rIndex=0;rIndex<rNodes.Count();rIndex++)
+            for(int rIndex=0;rIndex<RNodes.Count();rIndex++)
             {
-                R r = rNodes[rIndex];
+                R r = RNodes[rIndex];
                 Highlight currHighlight = r.FindChild<RProp>()?.FindChild<Highlight>();
 
                 if(currHighlight != null)
@@ -1439,7 +1550,7 @@ namespace TDV.Docx
                     if (highlightText.Color == null)
                         highlightText.Color = currHighlight.Value;
                     //если подсветка следующей ноды такая же, как у текузей - зааппендить текст. иначе - доавбить в результат и создать новый HighlightText
-                    if (rIndex + 1 <= rNodes.Count() - 1 && rNodes[rIndex+1].FindChild<RProp>()?.FindChild<Highlight>()?.Value==currHighlight.Value)
+                    if (rIndex + 1 <= RNodes.Count() - 1 && RNodes[rIndex+1].FindChild<RProp>()?.FindChild<Highlight>()?.Value==currHighlight.Value)
                     {
                         highlightText.Text += r.Text;
                     }else
@@ -1465,7 +1576,7 @@ namespace TDV.Docx
             List<Ins> insList = FindChilds<Ins>();
             foreach (Ins ins in insList)
             {
-                foreach (Node insNode in ins.childNodes)
+                foreach (Node insNode in ins.ChildNodes)
                     insNode.MoveTo(this);
                 ins.Delete();
             }
@@ -1473,7 +1584,7 @@ namespace TDV.Docx
             FindChild<PProp>()?.FindChild<RProp>()?.FindChild<RprChange>()?.Delete();
             FindChild<PProp>()?.FindChild<RProp>()?.FindChild<Ins>()?.Delete();
             FindChild<PProp>()?.FindChild<SectProp>()?.FindChild<SectPrChange>()?.Delete();
-            foreach (R r in rNodes)
+            foreach (R r in RNodes)
             { 
                 r.FindChild<RProp>()?.FindChild<RprChange>()?.Delete();
             }
@@ -1501,46 +1612,41 @@ namespace TDV.Docx
         {
             if(applyToRnodes)
             { 
-                foreach (R r in rNodes)
+                foreach (R r in RNodes)
                 {
-                    r.rPr.CompareStyle(style, author);
+                    r.RProp.CompareStyle(style, author);
                 }
             }
-            pPr.rPr.CompareStyle(style, author);
+            PProp.RProp.CompareStyle(style, author);
         }
 
         public void ComparePStyle(PStyle style, string author = "TDV")
         {
-            pPr.CompareStyle(style, author);
+            PProp.CompareStyle(style, author);
         }
         public void CompareStyles(PStyle pstyle,RStyle rstyle, string author = "TDV", bool applyToRnodes = true)
         {
-            pPr.CompareStyle(pstyle, author);
+            PProp.CompareStyle(pstyle, author);
             CompareRStyle(rstyle, author, applyToRnodes);
         }
 
-        public List<R> rNodes
+        public List<R> RNodes
         {
-            get { return childNodes.Where(x => x is R).Select(x => (R)x).ToList(); }
+            get { return FindChilds<R>(); }
         }
 
-        public PProp pPr
+        public PProp PProp
         {
             get
             {
-                PProp result = childNodes.Where(x => x is PProp).Select(x => (PProp)x).FirstOrDefault();
-                if (result == null)
-                {
-                    result = new PProp(this);
-                }
-                return result;
+                return FindChildOrCreate<PProp>();
             }
         }
 
         public int DrawingCount()
         {
             int result = 0;
-            foreach (R r in rNodes)
+            foreach (R r in RNodes)
             {
                 foreach (Drawing d in r.FindChilds<Drawing>())
                 {
@@ -1557,17 +1663,17 @@ namespace TDV.Docx
         {
             get
             {
-                return string.Join("", rNodes.Select(x => x.Text).ToList());
+                return string.Join("", RNodes.Select(x => x.Text).ToList());
             }
             set
             {
-                var rN = rNodes.FirstOrDefault();//тут может быть эксепшн, если нет ни одной r ноды. но это не точно
+                var rN = RNodes.FirstOrDefault();//тут может быть эксепшн, если нет ни одной r ноды. но это не точно
                 if (rN == null)
                     rN=NewNodeLast<R>();
-                foreach (var item in rNodes)
-                    xmlEl.RemoveChild(item.xmlEl);
+                foreach (var item in RNodes)
+                    XmlEl.RemoveChild(item.XmlEl);
                 rN.Text = value;
-                xmlEl.AppendChild(rN.xmlEl);
+                XmlEl.AppendChild(rN.XmlEl);
             }
         }
 
@@ -1583,12 +1689,12 @@ namespace TDV.Docx
         {
             if (Text != newText)
             {
-                foreach (R r in rNodes)
+                foreach (R r in RNodes)
                     r.CorrectDel();
                 Ins newIns = NewNodeLast<Ins>();
                 newIns.Author = author;
                 R newRnode = newIns.NewNodeLast<R>();
-                newRnode.rPr.SetStyle(rStyle);
+                newRnode.RProp.SetStyle(rStyle);
                 newRnode.Text = newText;
             }
         }
@@ -1599,25 +1705,25 @@ namespace TDV.Docx
         /// </summary>
         public void CorrectDel(string author = "TDV")
         {
-            pPr.rPr.SetCorrectionMode("del");
-            xmlEl.RemoveAttribute("w:rsidRPr");
-            xmlEl.SetAttribute("rsidDel",xmlEl.NamespaceURI,xmlEl.GetAttribute("w:rsidR"));
-            while (rNodes.Count() > 0)
-                rNodes.First().CorrectDel(author);
-            List<Paragraph> parList = parent.FindChilds<Paragraph>();
-            if (xmlEl == parList.Last().xmlEl)
+            PProp.RProp.SetCorrectionMode("del");
+            XmlEl.RemoveAttribute("w:rsidRPr");
+            XmlEl.SetAttribute("rsidDel",XmlEl.NamespaceURI,XmlEl.GetAttribute("w:rsidR"));
+            while (RNodes.Count() > 0)
+                RNodes.First().CorrectDel(author);
+            List<Paragraph> parList = Parent.FindChilds<Paragraph>();
+            if (XmlEl == parList.Last().XmlEl)
             {
                 //установить у ноды перед этой признак isDel. убирает лишний перенос на новую строку
-                for (int i = parList.Count-1; i > 0; i--)
+                for (int i = parList.Count-1; i >= 0; i--)
                 {
-                        if (parList[i].xmlEl != xmlEl) //предыдущая нода
+                        if (parList[i].XmlEl != XmlEl) //предыдущая нода
                         {
-                            parList[i].pPr.rPr.SetCorrectionMode("del", author);
+                            parList[i].PProp.RProp.SetCorrectionMode("del", author);
                         }
                         break;
                 }
-                Paragraph newP =  parent.NewNodeAfter<Paragraph>(parList.Last().xmlEl);
-                newP.xmlEl.SetAttribute("rsidRPr", xmlEl.NamespaceURI, xmlEl.GetAttribute("w:rsidR"));
+                Paragraph newP =  Parent.NewNodeAfter<Paragraph>(parList.Last().XmlEl);
+                newP.XmlEl.SetAttribute("rsidRPr", XmlEl.NamespaceURI, XmlEl.GetAttribute("w:rsidR"));
             }
         }
 
@@ -1626,9 +1732,9 @@ namespace TDV.Docx
             get
             {
                 bool result = true;
-                if (rNodes.Count == 0)
+                if (RNodes.Count == 0)
                     return false;
-                foreach (R run in rNodes)
+                foreach (R run in RNodes)
                     if (!run.IsBold)
                     {
                         result = false;
@@ -1644,9 +1750,9 @@ namespace TDV.Docx
             {
 
                 bool result = true;
-                if (rNodes.Count == 0)
+                if (RNodes.Count == 0)
                     return false;
-                foreach (R run in rNodes)
+                foreach (R run in RNodes)
                     if (!run.IsItalic)
                     {
                         result = false;
@@ -1922,7 +2028,7 @@ namespace TDV.Docx
             return !(a==b);
         }
         #endregion
-        public Size parentSize;
+        public Size ParentSize;
         public TABLE_WIDTH_TYPE SizeType;
 
         public int Value
@@ -1950,7 +2056,7 @@ namespace TDV.Docx
 
         public Size(int value,TABLE_WIDTH_TYPE type,Size parentSize=null)
         {
-            this.parentSize = parentSize;
+            this.ParentSize = parentSize;
             SizeType = type;            
             switch(type)
             {
@@ -1988,10 +2094,10 @@ namespace TDV.Docx
                     case TABLE_WIDTH_TYPE.DXA:
                         return _value;
                     case TABLE_WIDTH_TYPE.PCT:
-                        if (parentSize == null)
+                        if (ParentSize == null)
                             throw new Exception("Для вычисления необходимо указать parentSize");
                         double percents = _value / 50 / 100;
-                        return (int)(percents * parentSize._value);
+                        return (int)(percents * ParentSize._value);
                     case TABLE_WIDTH_TYPE.NIL:
                         return 0;
                     default:
@@ -2013,6 +2119,17 @@ namespace TDV.Docx
             {
                 _value = (int)value*567;
             }
+        }
+
+        public override int GetHashCode()
+        {
+            return _value.GetHashCode();
+        }
+        public override bool Equals(object obj)
+        {
+            if(obj is Size)
+                return base.Equals((Size)obj);
+            return false;
         }
 
         public int CompareTo(Size other)
@@ -2061,11 +2178,56 @@ namespace TDV.Docx
             }
         }
     }
-        public class SectProp : Node
+    public class SectProp : Node
     {
         public SectProp() : base("w:sectPr") { }
         public SectProp(Node parent) : base(parent, "w:sectPr") { }
         public SectProp(XmlElement xmlElement, Node parent) : base(xmlElement, parent, "w:sectPr") { }
+
+        public string RsidR
+        {
+            get
+            {
+                try
+                {
+                    return GetAttribute("w:rsidR");
+                }
+                catch (KeyNotFoundException)
+                {
+                    return null;
+                }
+            }
+            set
+            {
+                if (string.IsNullOrEmpty(value))
+                    RemoveAttribute("w:rsidR");
+                else
+                    SetAttribute("w:rsidR", value);
+            }
+        }
+
+
+        public string RsidRPr
+        {
+            get
+            {
+                try
+                {
+                    return GetAttribute("w:rsidRPr");
+                }
+                catch (KeyNotFoundException)
+                {
+                    return null;
+                }
+            }
+            set
+            {
+                if (string.IsNullOrEmpty(value))
+                    RemoveAttribute("w:rsidRPr");
+                else
+                    SetAttribute("w:rsidRPr", value);
+            }
+        }
 
         public PageMarginNode PgMar
         {
@@ -2135,10 +2297,10 @@ namespace TDV.Docx
 
         public void CompareFooter(NUM_FMT fmt, string author = "TDV")
         {
-            if (FootnotePr.numFmt.Value != fmt)
+            if (FootnotePr.NumFmt.Value != fmt)
             {
-                CreateChangeNode("w:sectPrChange",xmlEl, author);
-                FootnotePr.numFmt.Value = fmt;
+                CreateChangeNode("w:sectPrChange",XmlEl, author);
+                FootnotePr.NumFmt.Value = fmt;
             }
         }
 
@@ -2155,7 +2317,7 @@ namespace TDV.Docx
         {
             if (IsTitlePg != value)
             {
-                CreateChangeNode("w:sectPrChange", xmlEl, author);
+                CreateChangeNode("w:sectPrChange", XmlEl, author);
                 IsTitlePg=value;
             }
         }
@@ -2181,7 +2343,7 @@ namespace TDV.Docx
 
             if (PgMar.Top != top || PgMar.Bottom != bottom || PgMar.Left != left || PgMar.Right != right || PgMar.Header != header || PgMar.Footer != footer || PgMar.Gutter != gutter)
             {
-                CreateChangeNode("w:sectPrChange", xmlEl, author);
+                CreateChangeNode("w:sectPrChange", XmlEl, author);
                 if(top!=null)
                     PgMar.Top = top;
                 if(bottom!=null)
@@ -2215,7 +2377,7 @@ namespace TDV.Docx
                     break;
             }
 
-            XmlElement header = (XmlElement)xmlEl.SelectSingleNode("w:headerReference[@w:type=\"" + stringType + "\"] ", nsmgr);
+            XmlElement header = (XmlElement)XmlEl.SelectSingleNode("w:headerReference[@w:type=\"" + stringType + "\"] ", Nsmgr);
             /*if (header != null)
             {
                 string id=header.GetAttribute("r:id");
@@ -2231,9 +2393,7 @@ namespace TDV.Docx
             if (header != null)
             {
                 string id = header.GetAttribute("r:id");
-
-                ArchFile footerFile = docx.wordRels.GetFileById(id);
-                return new Header(docx, footerFile, docx.wordRels.GetRelationshipById(id));
+                return docx.GetHeader(id);
             }
             else
             {
@@ -2251,14 +2411,14 @@ namespace TDV.Docx
                     }
                 }
                 ArchFile newHeaderFile = wordFolder.AddFile($"header{maxHeaderIndex + 1}.xml", new byte[0]);
-                Override ov = docx.contentTypes.GetOverride(newHeaderFile.GetFullPath(), true);
+                Override ov = docx.ContentTypes.GetOverride(newHeaderFile.GetFullPath(), true);
                 ov.ContentType = Override.ContentTypes.HEADER;
-                Relationship newRel = docx.wordRels.NewRelationship(newHeaderFile.Name, RELATIONSIP_TYPE.HEADER);
+                Relationship newRel = docx.WordRels.NewRelationship(newHeaderFile.Name, RELATIONSIP_TYPE.HEADER);
                 Header newHeader = new Header(docx, newHeaderFile, newRel, create: true);
                 //прописать в document.xml
-                HeaderReference headerReference = docx.document.body.sectProp.GetHeaderReference(type, true);
+                HeaderReference headerReference = docx.Document.Body.SectProp.GetHeaderReference(type, true);
                 headerReference.Id = newRel.Id;
-
+                docx.headers.Add(newRel.Id, newHeader);
                 return newHeader;
             }
         }
@@ -2286,14 +2446,12 @@ namespace TDV.Docx
             }
 
 
-            XmlElement footer = (XmlElement)xmlEl.SelectSingleNode("w:footerReference[@w:type=\"" + stringType + "\"] ", nsmgr);
+            XmlElement footer = (XmlElement)XmlEl.SelectSingleNode("w:footerReference[@w:type=\"" + stringType + "\"] ", Nsmgr);
             DocxDocument docx = GetDocxDocument();
             if (footer != null)
             {
                 string id = footer.GetAttribute("r:id");
-                
-                ArchFile footerFile = docx.wordRels.GetFileById(id);
-                return new Footer(docx,footerFile,docx.wordRels.GetRelationshipById(id));
+                return docx.GetFooter(id);
             }else
             {
                 if(!createIfNotExist)
@@ -2310,14 +2468,15 @@ namespace TDV.Docx
                     }
                 }
                 ArchFile newFooterFile = wordFolder.AddFile($"footer{maxFooterIndex + 1}.xml", new byte[0]);
-                Override ov= docx.contentTypes.GetOverride(newFooterFile.GetFullPath(), true);
+                Override ov= docx.ContentTypes.GetOverride(newFooterFile.GetFullPath(), true);
                 ov.ContentType = Override.ContentTypes.FOOTER;
-                Relationship newRel= docx.wordRels.NewRelationship(newFooterFile.Name, RELATIONSIP_TYPE.FOOTER);
+                Relationship newRel= docx.WordRels.NewRelationship(newFooterFile.Name, RELATIONSIP_TYPE.FOOTER);
                 Footer newFooter = new Footer(docx,newFooterFile,newRel, create:true);
+                docx.footers.Add(newRel.Id, newFooter);
                 //прописать в document.xml
-                FooterReference footerReference= docx.document.body.sectProp.GetFooterReference(type, true);
+                FooterReference footerReference= docx.Document.Body.SectProp.GetFooterReference(type, true);
                 footerReference.Id = newRel.Id;
-                newFooter.Apply();
+                //newFooter.Apply();
                 return newFooter;
             }
         }
@@ -2326,21 +2485,21 @@ namespace TDV.Docx
         {
             get
             {
-                bool result = childNodes.Where(x => x.xmlEl.Name == "titlePg").Any();
+                bool result = ChildNodes.Where(x => x.XmlEl.Name == "titlePg").Any();
                 return result;
             }
             set
             {
                 if (value)
-                    if (!childNodes.Where(x => x.xmlEl.Name == "titlePg").Any())
+                    if (!ChildNodes.Where(x => x.XmlEl.Name == "titlePg").Any())
                     {
-                        xmlEl.AppendChild(xmlDoc.CreateElement("w:titlePg", xmlDoc.DocumentElement.NamespaceURI));
+                        XmlEl.AppendChild(XmlDoc.CreateElement("w:titlePg", XmlDoc.DocumentElement.NamespaceURI));
                     }
                     else
                     {
-                        XmlElement forDel = childNodes.Where(x => x.xmlEl.Name == "titlePg").FirstOrDefault()?.xmlEl;
+                        XmlElement forDel = ChildNodes.Where(x => x.XmlEl.Name == "titlePg").FirstOrDefault()?.XmlEl;
                         if (forDel != null)
-                            xmlDoc.RemoveChild(forDel);
+                            XmlDoc.RemoveChild(forDel);
                     }
             }
         }
@@ -2506,7 +2665,7 @@ namespace TDV.Docx
 
             if (currBorder != b)
             {
-                CreateChangeNode("w:pPrChange", (XmlElement)xmlEl.ParentNode, author);
+                CreateChangeNode("w:pPrChange", (XmlElement)XmlEl.ParentNode, author);
                 SetBorder(type, b);
             }
         }
@@ -2569,7 +2728,7 @@ namespace TDV.Docx
                 default:
                     break;
             }
-            XmlElement n = (XmlElement)xmlEl.SelectSingleNode($"{prefix}:{localName}", nsmgr);
+            XmlElement n = (XmlElement)XmlEl.SelectSingleNode($"{prefix}:{localName}", Nsmgr);
             Border b = new Border();
             if (n != null)
             {
@@ -2618,30 +2777,30 @@ namespace TDV.Docx
                 default:
                     break;
             }
-            XmlElement n = (XmlElement)xmlEl.SelectSingleNode($"{prefix}:{localName}", nsmgr);
+            XmlElement n = (XmlElement)XmlEl.SelectSingleNode($"{prefix}:{localName}", Nsmgr);
             if (b.type == LINE_TYPE.NONE && n != null)
             {
-                xmlEl.RemoveChild(n);
+                XmlEl.RemoveChild(n);
             }
 
             if (b.type != LINE_TYPE.NONE)
             {
                 if (n == null)
                 {
-                    n = xmlDoc.CreateElement($"{prefix}:{localName}", xmlDoc.DocumentElement.NamespaceURI);
-                    xmlEl.AppendChild(n);
+                    n = XmlDoc.CreateElement($"{prefix}:{localName}", XmlDoc.DocumentElement.NamespaceURI);
+                    XmlEl.AppendChild(n);
                 }
                 switch (b.type)
                 {
                     case LINE_TYPE.SINGLE:
-                        n.SetAttribute("val", xmlEl.NamespaceURI, "single");
+                        n.SetAttribute("val", XmlEl.NamespaceURI, "single");
                         break;
                     default:
                         break;
                 }
-                n.SetAttribute("sz", xmlEl.NamespaceURI, b.size.ToString());
-                n.SetAttribute("space", xmlEl.NamespaceURI, b.space.ToString());
-                n.SetAttribute("color", xmlEl.NamespaceURI, b.color);
+                n.SetAttribute("sz", XmlEl.NamespaceURI, b.size.ToString());
+                n.SetAttribute("space", XmlEl.NamespaceURI, b.space.ToString());
+                n.SetAttribute("color", XmlEl.NamespaceURI, b.color);
             }
         }
 
@@ -2662,26 +2821,26 @@ namespace TDV.Docx
         {
             if (b == null)
                 return;
-            if (border != b)
+            if (Border != b)
             {
-                CreateChangeNode("w:rPrChange", (XmlElement)xmlEl.ParentNode, author);
-                border = b ;
+                CreateChangeNode("w:rPrChange", (XmlElement)XmlEl.ParentNode, author);
+                Border = b ;
             }
         }
 
-        public Border border
+        public Border Border
         {
             get
             {
                 Border b = new Border();
-                if(xmlEl.HasAttribute("w:color"))
-                    b.color = xmlEl.GetAttribute("w:color");
-                if(xmlEl.HasAttribute("w:sz"))
-                    b.size = Int32.Parse(xmlEl.GetAttribute("w:sz"));
-                if (xmlEl.HasAttribute("w:space"))
-                    b.space = Int32.Parse(xmlEl.GetAttribute("w:space"));
+                if(XmlEl.HasAttribute("w:color"))
+                    b.color = XmlEl.GetAttribute("w:color");
+                if(XmlEl.HasAttribute("w:sz"))
+                    b.size = Int32.Parse(XmlEl.GetAttribute("w:sz"));
+                if (XmlEl.HasAttribute("w:space"))
+                    b.space = Int32.Parse(XmlEl.GetAttribute("w:space"));
                 else b.space = -1;
-                switch (xmlEl.GetAttribute("w:val"))
+                switch (XmlEl.GetAttribute("w:val"))
                 {
                     case "single":
                         b.type = LINE_TYPE.SINGLE;
@@ -2698,7 +2857,7 @@ namespace TDV.Docx
             {
                 if (value.type == LINE_TYPE.NONE)
                 {
-                    parent.xmlEl.RemoveChild(xmlEl);
+                    Parent.XmlEl.RemoveChild(XmlEl);
                     return;
                 }
 
@@ -2707,14 +2866,14 @@ namespace TDV.Docx
                     switch ( value.type)
                     {
                         case LINE_TYPE.SINGLE:
-                            xmlEl.SetAttribute("val", xmlEl.NamespaceURI, "single");
+                            XmlEl.SetAttribute("val", XmlEl.NamespaceURI, "single");
                             break;
                         default:
                             break;
                     }
-                    xmlEl.SetAttribute("sz", xmlEl.NamespaceURI, value.size.ToString());
-                    xmlEl.SetAttribute("space", xmlEl.NamespaceURI, value.space.ToString());
-                    xmlEl.SetAttribute("color", xmlEl.NamespaceURI, value.color);
+                    XmlEl.SetAttribute("sz", XmlEl.NamespaceURI, value.size.ToString());
+                    XmlEl.SetAttribute("space", XmlEl.NamespaceURI, value.space.ToString());
+                    XmlEl.SetAttribute("color", XmlEl.NamespaceURI, value.color);
                 }
             }
         }
@@ -2756,24 +2915,122 @@ namespace TDV.Docx
 
         public Ins(XmlElement xmlElement, Node parent) : base(xmlElement, parent, "w:ins") { }
 
-        public string Author
+        public int Id
         {
-            get { return xmlEl.GetAttribute("author", xmlEl.NamespaceURI); }
+            get
+            {
+                return Int32.Parse(GetAttribute("w:id"));
+            }
             set
             {
-                xmlEl.SetAttribute("author", xmlEl.NamespaceURI, value);
+                SetAttribute("w:id", value.ToString());
             }
         }
 
+        public DateTime? Date
+        {
+            get
+            {
+                try
+                {
+                    return DateTime.Parse(GetAttribute("w:date"));
+                }
+                catch
+                {
+                    return null;
+                }
+            }
+            set
+            {
+                if (value == null)
+                    RemoveAttribute("w:date");
+                else
+                    SetAttribute("w:date", ((DateTime)value).ToString("yyyy-MM-ddTHH:mm:ssZ"));
+            }
+        }
+
+        /// <summary>
+        /// Автор комментария
+        /// </summary>
+        public string Author
+        {
+            get
+            {
+                return GetAttribute("w:author");
+            }
+            set
+            {
+                SetAttribute("w:author", value);
+            }
+        }
 
         //метод общий для INS и DEL
         public override void InitXmlElement()
         {
             base.InitXmlElement();
-            if (string.IsNullOrEmpty(xmlEl.GetAttribute("id", xmlEl.NamespaceURI)))
-                xmlEl.SetAttribute("id", xmlEl.NamespaceURI, (xmlDoc.GetLastId() + 1).ToString());
+            Id = GetDocxDocument().Document.GetLastId() + 1;
             Author = "TDV";
-            xmlEl.SetAttribute("date", xmlEl.NamespaceURI, DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ssZ"));
+            Date = DateTime.Now;
+        }
+    }
+
+    /// <summary>
+    /// Размер шрифта в половниах точек или 1/144 дюйма
+    /// </summary>
+    public class Sz : Node
+    {
+        public Sz() : base("w:sz") { }
+
+        public Sz(Node parent) : base(parent, "w:sz") { }
+
+        public Sz(XmlElement xmlElement, Node parent) : base(xmlElement, parent, "w:sz") { }
+        public double? Value
+        {
+            get
+            {
+                try
+                {
+                    return double.Parse(GetAttribute("w:val"));
+                }
+                catch { return null; }
+            }
+            set
+            {
+                if (value == null)
+                    Delete();
+                else
+                    SetAttribute("w:val", value.ToString());
+            }
+        }
+    }
+
+    /// <summary>
+    /// размер шрифта для сложных наборов знаков. размер в полуточках или 1/144 дюйма
+    /// </summary>
+    public class SzCs : Node
+    {
+        public SzCs() : base("w:szCs") { }
+
+        public SzCs(Node parent) : base(parent, "w:szCs") { }
+
+        public SzCs(XmlElement xmlElement, Node parent) : base(xmlElement, parent, "w:szCs") { }
+        public double? Value
+        {
+            get
+            {
+                try
+                {
+                    return double.Parse(GetAttribute("w:val"));
+                }
+                catch { return null; }
+            }
+            set
+            {
+                if (value == null)
+                    Delete();
+                else
+                    SetAttribute("w:val", value.ToString());
+            }
         }
     }
 
@@ -2785,24 +3042,62 @@ namespace TDV.Docx
 
         public Del(XmlElement xmlElement, Node parent) : base(xmlElement, parent, "w:del") { }
 
-        public string Author
+        public int Id
         {
-            get { return xmlEl.GetAttribute("author", xmlEl.NamespaceURI); }
+            get
+            {
+                return Int32.Parse(GetAttribute("w:id"));
+            }
             set
             {
-                xmlEl.SetAttribute("author", xmlEl.NamespaceURI, value);
+                SetAttribute("w:id", value.ToString());
             }
         }
 
+        public DateTime? Date
+        {
+            get
+            {
+                try
+                {
+                    return DateTime.Parse(GetAttribute("w:date"));
+                }
+                catch
+                {
+                    return null;
+                }
+            }
+            set
+            {
+                if (value == null)
+                    RemoveAttribute("w:date");
+                else
+                    SetAttribute("w:date", ((DateTime)value).ToString("yyyy-MM-ddTHH:mm:ssZ"));
+            }
+        }
+
+        /// <summary>
+        /// Автор
+        /// </summary>
+        public string Author
+        {
+            get
+            {
+                return GetAttribute("w:author");
+            }
+            set
+            {
+                SetAttribute("w:author", value);
+            }
+        }
 
         //метод общий для INS и DEL
         public override void InitXmlElement()
         {
             base.InitXmlElement();
-            if (string.IsNullOrEmpty(xmlEl.GetAttribute("id", xmlEl.NamespaceURI)))
-                xmlEl.SetAttribute("id", xmlEl.NamespaceURI, (xmlDoc.GetLastId() + 1).ToString());
+            Id = GetDocxDocument().Document.GetLastId() + 1;
             Author = "TDV";
-            xmlEl.SetAttribute("date", xmlEl.NamespaceURI, DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ssZ"));
+            Date = DateTime.Now;
         }
     }
 
@@ -2840,7 +3135,7 @@ namespace TDV.Docx
                 try
                 {
                     return FindChild<Inline>()
-                        .FindChild<Extent>().cx/360000.0f;
+                        .FindChild<Extent>().Cx/360000.0f;
                 }
                 catch
                 { return -1; }
@@ -2850,13 +3145,13 @@ namespace TDV.Docx
                 try
                 {
                     FindChild<Inline>()
-                        .FindChild<Extent>().cx = (int)(value * 360000.0f);
-                    FindChild<Inline>().FindChild<EffectExtent>().l = 0;
-                    FindChild<Inline>().FindChild<EffectExtent>().r = 0;
-                    FindChild<Inline>().FindChild<EffectExtent>().b = 0;
-                    FindChild<Inline>().FindChild<EffectExtent>().t = 0;
+                        .FindChild<Extent>().Cx = (int)(value * 360000.0f);
+                    FindChild<Inline>().FindChild<EffectExtent>().L = 0;
+                    FindChild<Inline>().FindChild<EffectExtent>().R = 0;
+                    FindChild<Inline>().FindChild<EffectExtent>().B = 0;
+                    FindChild<Inline>().FindChild<EffectExtent>().T = 0;
                     FindChild<Inline>()
-                        .FindChild<Graphic>().FindChild<GraphicData>().FindChild<Pic>().FindChild<SpPr>().FindChild<Xfrm>().FindChild<Ext>().cx = (int)(value * 360000.0f);
+                        .FindChild<Graphic>().FindChild<GraphicData>().FindChild<Pic>().FindChild<SpPr>().FindChild<Xfrm>().FindChild<Ext>().Cx = (int)(value * 360000.0f);
                 }
                 catch { }
             }
@@ -2868,7 +3163,7 @@ namespace TDV.Docx
                 try
                 {
                     return FindChild<Inline>()
-                        .FindChild<Extent>().cy/ 360000.0f;
+                        .FindChild<Extent>().Cy/ 360000.0f;
                 }
                 catch
                 { return -1; }
@@ -2878,13 +3173,13 @@ namespace TDV.Docx
                 try
                 {
                     FindChild<Inline>()
-                        .FindChild<Extent>().cy = (int)(value * 360000.0f);
-                    FindChild<Inline>().FindChild<EffectExtent>().l = 0;
-                    FindChild<Inline>().FindChild<EffectExtent>().r = 0;
-                    FindChild<Inline>().FindChild<EffectExtent>().b = 0;
-                    FindChild<Inline>().FindChild<EffectExtent>().t = 0;
+                        .FindChild<Extent>().Cy = (int)(value * 360000.0f);
+                    FindChild<Inline>().FindChild<EffectExtent>().L = 0;
+                    FindChild<Inline>().FindChild<EffectExtent>().R = 0;
+                    FindChild<Inline>().FindChild<EffectExtent>().B = 0;
+                    FindChild<Inline>().FindChild<EffectExtent>().T = 0;
                     FindChild<Inline>()
-                        .FindChild<Graphic>().FindChild<GraphicData>().FindChild<Pic>().FindChild<SpPr>().FindChild<Xfrm>().FindChild<Ext>().cy = (int)(value * 360000.0f);
+                        .FindChild<Graphic>().FindChild<GraphicData>().FindChild<Pic>().FindChild<SpPr>().FindChild<Xfrm>().FindChild<Ext>().Cy = (int)(value * 360000.0f);
                 }
                 catch { }
             }
@@ -2942,28 +3237,28 @@ namespace TDV.Docx
         /// <summary>
         /// Ширина
         /// </summary>
-        public int cx
+        public int Cx
         {
             get
             {
                 int result = -1;
-                Int32.TryParse(xmlEl.GetAttribute("cx"), out result);
+                Int32.TryParse(XmlEl.GetAttribute("cx"), out result);
                 return result;
             }
-            set { xmlEl.SetAttribute("cx", value.ToString()); }
+            set { XmlEl.SetAttribute("cx", value.ToString()); }
         }
         /// <summary>
         /// Высота
         /// </summary>
-        public int cy
+        public int Cy
         {
             get
             {
                 int result = -1;
-                Int32.TryParse(xmlEl.GetAttribute("cy"), out result);
+                Int32.TryParse(XmlEl.GetAttribute("cy"), out result);
                 return result;
             }
-            set{ xmlEl.SetAttribute("cy", value.ToString()); }
+            set{ XmlEl.SetAttribute("cy", value.ToString()); }
         }
     }
 
@@ -2972,45 +3267,45 @@ namespace TDV.Docx
         public EffectExtent() : base("wp:effectExtent") { }
         public EffectExtent(XmlElement xmlElement, Node parent) : base(xmlElement, parent, "wp:effectExtent") { }
 
-        public int l
+        public int L
         {
             get
             {
                 int result = -1;
-                Int32.TryParse(xmlEl.GetAttribute("l"), out result);
+                Int32.TryParse(XmlEl.GetAttribute("l"), out result);
                 return result;
             }
-            set { xmlEl.SetAttribute("l", value.ToString()); }
+            set { XmlEl.SetAttribute("l", value.ToString()); }
         }
-        public int r
+        public int R
         {
             get
             {
                 int result = -1;
-                Int32.TryParse(xmlEl.GetAttribute("r"), out result);
+                Int32.TryParse(XmlEl.GetAttribute("r"), out result);
                 return result;
             }
-            set { xmlEl.SetAttribute("r", value.ToString()); }
+            set { XmlEl.SetAttribute("r", value.ToString()); }
         }
-        public int t
+        public int T
         {
             get
             {
                 int result = -1;
-                Int32.TryParse(xmlEl.GetAttribute("t"), out result);
+                Int32.TryParse(XmlEl.GetAttribute("t"), out result);
                 return result;
             }
-            set { xmlEl.SetAttribute("t", value.ToString()); }
+            set { XmlEl.SetAttribute("t", value.ToString()); }
         }
-        public int b
+        public int B
         {
             get
             {
                 int result = -1;
-                Int32.TryParse(xmlEl.GetAttribute("b"), out result);
+                Int32.TryParse(XmlEl.GetAttribute("b"), out result);
                 return result;
             }
-            set { xmlEl.SetAttribute("b", value.ToString()); }
+            set { XmlEl.SetAttribute("b", value.ToString()); }
         }
     }
 
@@ -3034,28 +3329,28 @@ namespace TDV.Docx
         /// <summary>
         /// Ширина
         /// </summary>
-        public int cx
+        public int Cx
         {
             get
             {
                 int result = -1;
-                Int32.TryParse(xmlEl.GetAttribute("cx"), out result);
+                Int32.TryParse(XmlEl.GetAttribute("cx"), out result);
                 return result;
             }
-            set { xmlEl.SetAttribute("cx", value.ToString()); }
+            set { XmlEl.SetAttribute("cx", value.ToString()); }
         }
         /// <summary>
         /// Высота
         /// </summary>
-        public int cy
+        public int Cy
         {
             get
             {
                 int result = -1;
-                Int32.TryParse(xmlEl.GetAttribute("cy"), out result);
+                Int32.TryParse(XmlEl.GetAttribute("cy"), out result);
                 return result;
             }
-            set { xmlEl.SetAttribute("cy", value.ToString()); }
+            set { XmlEl.SetAttribute("cy", value.ToString()); }
         }
     }
     
@@ -3091,14 +3386,14 @@ namespace TDV.Docx
         /// <summary>
         /// 
         /// </summary>
-        public string embed
+        public string Embed
         {
-            get { return xmlEl.GetAttribute("r:embed"); }
+            get { return XmlEl.GetAttribute("r:embed"); }
         }
 
         public Image GetImageFile()
         {
-            byte[] bytes = GetDocxDocument().wordRels.GetFileById(embed).content;
+            byte[] bytes = GetDocxDocument().WordRels.GetFileById(Embed).Content;
             return Bitmap.FromStream(new MemoryStream(bytes));
             
         }
@@ -3109,13 +3404,10 @@ namespace TDV.Docx
         public FootnotePr() : base("w:footnotePr") { }
         public FootnotePr(Node parent) : base(parent, "w:footnotePr") { }
         public FootnotePr(XmlElement xmlElement, Node parent) : base(xmlElement, parent, "w:footnotePr") { }
-        public NumFmt numFmt{
+        public NumFmt NumFmt{
             get
             {
-                NumFmt result = FindChild<NumFmt>();
-                if (result == null)
-                    result = NewNodeLast<NumFmt>();
-                return result;
+                return FindChildOrCreate<NumFmt>();
             }
         }
     }
@@ -3158,8 +3450,7 @@ namespace TDV.Docx
             get
             {
                 NUM_FMT result = NUM_FMT.UNKNOWN;
-
-                switch (xmlEl.GetAttribute("w:val"))
+                switch (XmlEl.GetAttribute("w:val"))
                 {
                     case "":
                         result=NUM_FMT.DEFAULT;
@@ -3190,22 +3481,22 @@ namespace TDV.Docx
                 {
                     default:
                     case NUM_FMT.DEFAULT:
-                        xmlEl.RemoveAttribute("val", xmlEl.NamespaceURI);
+                        XmlEl.RemoveAttribute("val", XmlEl.NamespaceURI);
                         break;
                     case NUM_FMT.CHICAGO:
-                        xmlEl.SetAttribute("val", xmlEl.NamespaceURI, "chicago");
+                        XmlEl.SetAttribute("val", XmlEl.NamespaceURI, "chicago");
                         break;
                     case NUM_FMT.LOWER_ROMAN:
-                        xmlEl.SetAttribute("val", xmlEl.NamespaceURI, "lowerRoman");
+                        XmlEl.SetAttribute("val", XmlEl.NamespaceURI, "lowerRoman");
                         break;
                     case NUM_FMT.UPPER_ROMAN:
-                        xmlEl.SetAttribute("val", xmlEl.NamespaceURI, "upperRoman");
+                        XmlEl.SetAttribute("val", XmlEl.NamespaceURI, "upperRoman");
                         break;
                     case NUM_FMT.UPPER_LETTER:
-                        xmlEl.SetAttribute("val", xmlEl.NamespaceURI, "upperLetter");
+                        XmlEl.SetAttribute("val", XmlEl.NamespaceURI, "upperLetter");
                         break;
                     case NUM_FMT.BULLET:
-                        xmlEl.SetAttribute("val", xmlEl.NamespaceURI, "bullet");
+                        XmlEl.SetAttribute("val", XmlEl.NamespaceURI, "bullet");
                         break;
                 }
             }
@@ -3213,71 +3504,6 @@ namespace TDV.Docx
     }
 
 
-    /// <summary>
-    /// формат списка
-    /// </summary>
-    /*public enum NUM_FORMAT
-    {
-        UNKNOWN,
-        /// <summary>
-        /// Кружки
-        /// </summary>
-        CIRCLE=1,
-        /// <summary>
-        /// Треугольники
-        /// </summary>
-        TRIANGLE=2,
-        /// <summary>
-        /// О
-        /// </summary>
-        O=3,
-        /// <summary>
-        /// квадрат
-        /// </summary>
-        SQUARE=4,
-        /// <summary>
-        /// 4 Ромба
-        /// </summary>
-        FOUR_ROMBUS=5,
-        COLOR_ICON=6,
-        /// <summary>
-        /// черно-белая стрелка
-        /// </summary>
-        ARROW=7,
-        /// <summary>
-        /// галочка
-        /// </summary>
-        CHECK_MARK=8,
-        /// <summary>
-        /// 1. 2. 3.
-        /// </summary>
-        NUMBERS1 = 9,
-        /// <summary>
-        /// 1) 2) 3)
-        /// </summary>
-        NUMBERS2 = 10,
-        /// <summary>
-        /// I. II. III.
-        /// </summary>
-        NUMBERS3 = 11,
-        /// <summary>
-        /// A. B. C.
-        /// </summary>
-        SYMBOLS1 = 12,
-        /// <summary>
-        /// a) b) c)
-        /// </summary>
-        SYMBOLS2 = 13,
-        /// <summary>
-        /// a. b. c.
-        /// </summary>
-        SYMBOLS3 = 14,
-        /// <summary>
-        /// i. ii. iii.
-        /// </summary>
-        SYMBOLS4 =15
-
-    }*/
 
     /// <summary>
     /// Уровень списка
@@ -3293,11 +3519,11 @@ namespace TDV.Docx
         {
             get
             {
-                return Int32.Parse(xmlEl.GetAttribute("w:val"));
+                return Int32.Parse(XmlEl.GetAttribute("w:val"));
             }
             set
             {
-                xmlEl.SetAttribute("val", xmlEl.NamespaceURI, value.ToString());
+                XmlEl.SetAttribute("val", XmlEl.NamespaceURI, value.ToString());
             }
         }
     }
@@ -3317,11 +3543,11 @@ namespace TDV.Docx
         {
             get
             {
-                return  Int32.Parse(xmlEl.GetAttribute("w:val"));
+                return  Int32.Parse(XmlEl.GetAttribute("w:val"));
             }
             set
             {
-                xmlEl.SetAttribute("val", xmlEl.NamespaceURI, value.ToString());
+                XmlEl.SetAttribute("val", XmlEl.NamespaceURI, value.ToString());
             }
         }
     }
@@ -3344,7 +3570,7 @@ namespace TDV.Docx
         {
             get
             {
-                Ilvl result = childNodes.Where(x => x is Ilvl).Select(x => (Ilvl)x).FirstOrDefault();
+                Ilvl result = ChildNodes.Where(x => x is Ilvl).Select(x => (Ilvl)x).FirstOrDefault();
                 if (result == null)
                     result = new Ilvl(this);
                 return result;
@@ -3354,7 +3580,7 @@ namespace TDV.Docx
         {
             get
             {
-                NumId result = childNodes.Where(x => x is NumId).Select(x => (NumId)x).FirstOrDefault();
+                NumId result = ChildNodes.Where(x => x is NumId).Select(x => (NumId)x).FirstOrDefault();
                 if (result == null)
                     result = new NumId(this);
                 return result;
@@ -3376,4 +3602,215 @@ namespace TDV.Docx
         }
     }
 
+    public class Hyperlink : Node
+    {
+        public Hyperlink() : base("w:hyperlink") { }
+        public Hyperlink(Node parent, int numId) : base(parent, "w:hyperlink")   {}
+        public Hyperlink(XmlElement xmlElement, Node parent) : base(xmlElement, parent, "w:hyperlink") { }
+
+        public List<R> RNodes
+        {
+            get
+            {
+                return FindChilds<R>();
+            }
+        }
+
+        public override string Text { 
+            get => base.Text;
+            set
+            {
+                while (RNodes.Count > 0)
+                    RNodes.First().Delete();
+                DocxDocument docx = GetDocxDocument();
+                Style hlStyle = docx.Styles.GetStyleByName("Hyperlink");
+                if(hlStyle==null)
+                {
+                    hlStyle = docx.Styles.NewNodeLast<Style>();
+                    hlStyle.Type = STYLE_TYPE.CHARACTER;
+                    hlStyle.StyleId = $"a{ docx.Styles.GetMaxStyleId("a") + 1}";
+                    hlStyle.Name = "Hyperlink";
+                    hlStyle.basedOn = docx.Styles.GetDefaultParagraphFontStyle();
+                    hlStyle.UiPriority = 99;
+                    hlStyle.IsUnhideWhenUsed = true;
+                    RProp rPr = hlStyle.FindChildOrCreate<RProp>();
+                    rPr.Color = "0563C1";
+                    rPr.Underline = LINE_TYPE.SINGLE;
+                }
+                R r = NewNodeLast<R>();
+                r.RProp.Style = hlStyle;
+                r.t.XmlSpace= XML_SPACE.PRESERVE;
+                r.Text = value;
+            }
+        }
+
+        /// <summary>
+        /// Ссылка на Relationships.xml
+        /// </summary>
+        public string Id
+        {
+            get
+            {
+                if(HasAttribute("r:id"))
+                    try { 
+                        return GetAttribute("r:id");
+                    }catch{}
+
+                return null;
+            }
+            set
+            {
+                SetAttribute("r:id", value);
+            }
+        }
+
+        /// <summary>
+        /// ссылка на закладку в документе
+        /// </summary>
+        public string Anchor
+        {
+            get
+            {
+                try
+                {
+                    return GetAttribute("r:anchor");
+                }
+                catch (KeyNotFoundException)
+                {
+                    return null;
+                }
+            }
+            set
+            {
+                SetAttribute("r:anchor", value);
+            }
+        }
+
+        public int? History
+        {
+            get
+            {
+                try
+                {
+                    return Int32.Parse(GetAttribute("r:id"));
+                }
+                catch
+                {
+                    return null;
+                }
+            }
+            set
+            {
+                if (value == null)
+                    RemoveAttribute("r:history");
+                else
+                    SetAttribute("r:history", ((int)value).ToString());
+            }
+        }
+
+        public Relationship GetRelationship(bool createIfNotExist=false,RELATIONSIP_TYPE newRelType=RELATIONSIP_TYPE.HYPERLINK)
+        {
+            DocxDocument docx = GetDocxDocument();
+            if (string.IsNullOrEmpty(Id))
+            {
+                if (!createIfNotExist)
+                    throw new KeyNotFoundException($"Id не заполнен. Невозможно вычислить связь");
+                Id = $"rId{docx.WordRels.GetMaxRelId() + 1}";
+                Relationship rel = docx.WordRels.NewRelationship("", newRelType);
+                //docx.wordRels.Apply();
+                return rel;
+            }
+            else
+            {
+                return docx.WordRels.GetRelationshipById(Id);
+            }
+        }
+
+        public string Url
+        {
+            get
+            {
+                return GetRelationship().Target;
+            }
+            set
+            {
+                GetRelationship(true).Target = value;
+                GetDocxDocument().WordRels.Apply();
+            }
+        }
+    }
+    /// <summary>
+    /// подчеркивание (underline)
+    /// </summary>
+    public class U : Node
+    {
+        public U() : base("w:u") { }
+        public U(Node parent, int numId) : base(parent, "w:u") { }
+        public LINE_TYPE Value
+        {
+            get
+            {
+                if (!HasAttribute("w:val"))
+                    return LINE_TYPE.NONE;
+                switch (GetAttribute("w:val"))
+                {
+                    case "dotted":
+                        return LINE_TYPE.DOTTED;
+                    case "single":
+                        return LINE_TYPE.SINGLE;
+                    default:
+                        throw new NotImplementedException();
+                }
+            }
+            set
+            {
+                switch (value)
+                {
+                    case LINE_TYPE.NONE:
+                        Delete();
+                        return;
+                    case LINE_TYPE.SINGLE:
+                        SetAttribute("w:val", "single");
+                        return;
+                    case LINE_TYPE.DOTTED:
+                        SetAttribute("w:val", "dotted");
+                        return;
+                }
+                throw new NotImplementedException();
+
+            }
+        }
+    }
+    public class Lang : Node
+    {
+        public Lang() : base("w:lang") {     }
+        public Lang(XmlElement xmlElement, Node parent) : base(xmlElement, parent, "w:lang") { }
+
+        public override void InitXmlElement()
+        {
+            base.InitXmlElement();
+            Value = "en-US";
+        }
+        public string Value
+        {
+            get
+            {
+                try
+                {
+                    return GetAttribute("w:val");
+                }
+                catch (KeyNotFoundException)
+                {
+                    return null;
+                }
+            }
+            set
+            {
+                if (string.IsNullOrEmpty(value))
+                    RemoveAttribute("w:val");
+                else
+                    SetAttribute("w:val", value);
+            }
+        }
+    }
 }

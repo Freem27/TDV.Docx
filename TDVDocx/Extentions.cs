@@ -8,7 +8,6 @@ namespace TDV.Docx
 {
     static class ListExtentions
     {
-
         public static int Median(this IEnumerable<int> source)
         {
             int[] temp = source.ToArray();

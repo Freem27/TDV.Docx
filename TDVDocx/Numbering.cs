@@ -23,13 +23,11 @@ namespace TDV.Docx
             try
             {
                 file = docx.sourceFolder.FindFile("numbering.xml", @"word");
-                List<Section> sections = docxDocument.document.Sections;
-                xmlDoc = new XmlDocument();
-                xmlDoc.LoadXml(file.GetSourceString());
-                nsmgr = new XmlNamespaceManager(xmlDoc.NameTable);
-                nsmgr.AddNamespace("w", xmlDoc.DocumentElement.NamespaceURI);
-                nsmgr.AddNamespace("w15", "http://schemas.microsoft.com/office/word/2012/wordml");
-                xmlEl = (XmlElement)xmlDoc.SelectSingleNode("/w:numbering", nsmgr);
+                List<Section> sections = DocxDocument.Document.Sections;
+                XmlDoc = new XmlDocument();
+                XmlDoc.LoadXml(file.GetSourceString());
+                FillNamespaces();
+                XmlEl = (XmlElement)XmlDoc.SelectSingleNode("/w:numbering", Nsmgr);
             }
             catch (FileNotFoundException)
             {
@@ -93,12 +91,12 @@ namespace TDV.Docx
 
             AbstractNum result = null;
             if (AbstartNums.Count() > 0)
-                result = NewNodeAfter<AbstractNum>(AbstartNums.Last().xmlEl);
+                result = NewNodeAfter<AbstractNum>(AbstartNums.Last().XmlEl);
             else
                 result = NewNodeFirst<AbstractNum>();
             result.AbstractNumId = maxAbstractNumId + 1;
 
-            result.xmlEl.SetAttribute("restartNumberingAfterBreak", nsmgr.LookupNamespace("w15"), "0");
+            result.XmlEl.SetAttribute("restartNumberingAfterBreak", Nsmgr.LookupNamespace("w15"), "0");
             result.NewNodeFirst<Nsid>().Value = GenerateGuid();
             result.NewNodeLast<MultiLevelType>().Value = "hybridMultilevel";
             result.NewNodeLast<Tmpl>().Value = GenerateGuid();
@@ -106,13 +104,13 @@ namespace TDV.Docx
             {
                 Lvl lvl = result.NewNodeLast<Lvl>();
                 lvl.ilvl = level;
-                lvl.xmlEl.SetAttribute("tplc", xmlEl.NamespaceURI, GenerateGuid());
+                lvl.XmlEl.SetAttribute("tplc", XmlEl.NamespaceURI, GenerateGuid());
                 lvl.Start.Value = start;
                 lvl.NumFmt.Value = numFmt;
                 lvl.LvlText.Value = lvlText;
                 lvl.LvlJc.Value = lvlJC;
-                lvl.Ppr.ind.left = indentingFirst*(level+1);
-                lvl.Ppr.ind.hanging = hanging;
+                lvl.Ppr.Ind.Left = indentingFirst*(level+1);
+                lvl.Ppr.Ind.Hanging = hanging;
                 lvl.Rpr.Font = fontName;
                 lvl.Rpr.FontSize = fontSize;
             }
@@ -144,11 +142,11 @@ namespace TDV.Docx
         {
             get
             {
-                return Int32.Parse(xmlEl.GetAttribute("abstractNumId", xmlEl.NamespaceURI));
+                return Int32.Parse(XmlEl.GetAttribute("abstractNumId", XmlEl.NamespaceURI));
             }
             set
             {
-                xmlEl.SetAttribute("abstractNumId",xmlEl.NamespaceURI, value.ToString());
+                XmlEl.SetAttribute("abstractNumId",XmlEl.NamespaceURI, value.ToString());
             }
         }
 
@@ -184,11 +182,11 @@ namespace TDV.Docx
         {
             get
             {
-                return Int32.Parse(xmlEl.GetAttribute("numId", nsmgr.LookupNamespace("w")));
+                return Int32.Parse(XmlEl.GetAttribute("numId", Nsmgr.LookupNamespace("w")));
             }
             set
             {
-                xmlEl.SetAttribute("numId",xmlEl.NamespaceURI, value.ToString());
+                XmlEl.SetAttribute("numId",XmlEl.NamespaceURI, value.ToString());
             }
         }
         public AbstractNumId AbstartNumId
@@ -209,11 +207,11 @@ namespace TDV.Docx
         {
             get
             {
-                return Int32.Parse(xmlEl.GetAttribute("w:val"));
+                return Int32.Parse(XmlEl.GetAttribute("w:val"));
             }
             set
             {
-                xmlEl.SetAttribute("val", xmlEl.NamespaceURI, value.ToString());
+                XmlEl.SetAttribute("val", XmlEl.NamespaceURI, value.ToString());
             }
         }
         
@@ -245,11 +243,11 @@ namespace TDV.Docx
         {
             get
             {
-                return Int32.Parse(xmlEl.GetAttribute("w:ilvl"));
+                return Int32.Parse(XmlEl.GetAttribute("w:ilvl"));
             }
             set
             {
-                xmlEl.SetAttribute("ilvl", xmlEl.NamespaceURI, value.ToString());
+                XmlEl.SetAttribute("ilvl", XmlEl.NamespaceURI, value.ToString());
             }
         }
 
@@ -326,11 +324,11 @@ namespace TDV.Docx
         {
             get
             {
-                return Int32.Parse(xmlEl.GetAttribute("w:val"));
+                return Int32.Parse(XmlEl.GetAttribute("w:val"));
             }
             set
             {
-                xmlEl.SetAttribute("val", xmlEl.NamespaceURI, value.ToString());
+                XmlEl.SetAttribute("val", XmlEl.NamespaceURI, value.ToString());
             }
         }
     }
@@ -346,11 +344,11 @@ namespace TDV.Docx
         {
             get
             {
-                return xmlEl.GetAttribute("w:val");
+                return XmlEl.GetAttribute("w:val");
             }
             set
             {
-                xmlEl.SetAttribute("val", xmlEl.NamespaceURI, value);
+                XmlEl.SetAttribute("val", XmlEl.NamespaceURI, value);
             }
         }
     }
@@ -364,11 +362,11 @@ namespace TDV.Docx
         {
             get
             {
-                return xmlEl.GetAttribute("w:val");
+                return XmlEl.GetAttribute("w:val");
             }
             set
             {
-                xmlEl.SetAttribute("val", xmlEl.NamespaceURI, value);
+                XmlEl.SetAttribute("val", XmlEl.NamespaceURI, value);
             }
         }
     }
@@ -383,11 +381,11 @@ namespace TDV.Docx
         {
             get
             {
-                return xmlEl.GetAttribute("w:val");
+                return XmlEl.GetAttribute("w:val");
             }
             set
             {
-                xmlEl.SetAttribute("val", xmlEl.NamespaceURI, value);
+                XmlEl.SetAttribute("val", XmlEl.NamespaceURI, value);
             }
         }
     }
@@ -402,11 +400,11 @@ namespace TDV.Docx
         {
             get
             {
-                return xmlEl.GetAttribute("w:val");
+                return XmlEl.GetAttribute("w:val");
             }
             set
             {
-                xmlEl.SetAttribute("val", xmlEl.NamespaceURI, value);
+                XmlEl.SetAttribute("val", XmlEl.NamespaceURI, value);
             }
         }
     }
@@ -422,7 +420,7 @@ namespace TDV.Docx
         {
             get
             {
-                switch (xmlEl.GetAttribute("w:val"))
+                switch (XmlEl.GetAttribute("w:val"))
                 {
                     case "left":
                         return HORIZONTAL_ALIGN.LEFT;
@@ -441,16 +439,16 @@ namespace TDV.Docx
                 switch (value)
                 {
                     case HORIZONTAL_ALIGN.LEFT:
-                        xmlEl.SetAttribute("val", xmlEl.NamespaceURI, "left");
+                        XmlEl.SetAttribute("val", XmlEl.NamespaceURI, "left");
                         break;
                     case HORIZONTAL_ALIGN.CENTER:
-                        xmlEl.SetAttribute("val", xmlEl.NamespaceURI, "center");
+                        XmlEl.SetAttribute("val", XmlEl.NamespaceURI, "center");
                         break;
                     case HORIZONTAL_ALIGN.RIGHT:
-                        xmlEl.SetAttribute("val", xmlEl.NamespaceURI, "right");
+                        XmlEl.SetAttribute("val", XmlEl.NamespaceURI, "right");
                         break;
                     case HORIZONTAL_ALIGN.BOTH:
-                        xmlEl.SetAttribute("val", xmlEl.NamespaceURI, "both");
+                        XmlEl.SetAttribute("val", XmlEl.NamespaceURI, "both");
                         break;
                     default:
                         break;

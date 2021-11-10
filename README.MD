@@ -629,4 +629,52 @@ Table t = (Table)node;
 SectProp currSectProp = t.Section.sectProp;
 t.FixColumnsSizes();
 ```
-![](images/tableAfterFixColSizes.JPG) 
+![](images/tableAfterFixColSizes.JPG)
+
+# Гипперссылки
+Бывают внутренние и внешние
+
+для внутренних гиперссылок у класса Hyperlink заполнен параметр Anchor  
+для внешних - параметр Id
+
+Создание внешней гипперссылки
+```csharp
+Paragraph newP = docx.Document.Body.NewNodeBefore<Paragraph>(docx.Document.Body.SectProp);
+newP.NewNodeLast<R>().Text = "Библиотека ";
+Hyperlink hyperlink = newP.NewNodeLast<Hyperlink>();
+hyperlink.Text = "TDV.Docx";
+hyperlink.Url = "https://github.com/Freem27/TDV.Docx";
+``` 
+
+резальтат:  
+![](images/ExternalHyperlink.JPG) 
+
+# Комментарии
+
+Комментарии хранятся в отдельно файле word\comments.xml
+В documnent.xml хранятся ссылки на комментарии  
+Ноды <b>CommentRangeStart</b> и <b>CommentRangeEnd</b> определяют начало и окончание комментируемого текста
+
+Пример добавления нового параграфа с комментарием
+```csharp
+Paragraph newP = docx.Document.Body.NewNodeBefore<Paragraph>(docx.Document.Body.SectProp);
+newP.Text = "какой-то текст ";
+//начало комментария обозначется нодой CommentRangeStart
+CommentRangeStart commentRangeStart = newP.NewNodeLast<CommentRangeStart>();
+newP.NewNodeLast<R>().Text = "прокомментированный текст";
+//окончание комментария обозначется нодой CommentRangeEnd
+CommentRangeEnd commentRangeEnd = newP.NewNodeLast<CommentRangeEnd>();
+//Id CommentRangeEnd должен быть такой же как у отрывающей ноды CommentRangeStart
+commentRangeEnd.Id = commentRangeStart.Id;
+
+//Добавляют сам комментарий. В конструктор передаем Id комментария
+Comment comment=docx.Comments.NewComment(commentRangeStart.Id, "TDV");
+comment.Text = "комментарий к прокомментированному тексту";
+
+//Получить комментарий по id
+Console.WriteLine(docx.Comments.GetCommentById(commentRangeStart.Id).Text);
+```
+
+Результат:
+![](images/newComment.JPG) 
+

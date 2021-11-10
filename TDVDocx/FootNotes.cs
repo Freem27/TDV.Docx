@@ -12,15 +12,14 @@ namespace TDV.Docx
     {
         internal FootNotes(DocxDocument docx) : base(docx,"w:footnotes")
         {
-            docxDocument = docx;
+            DocxDocument = docx;
             try
             {
                 file = docx.sourceFolder.FindFile("footnotes.xml");
-                xmlDoc = new XmlDocument();
-                xmlDoc.LoadXml(file.GetSourceString());
-                nsmgr = new XmlNamespaceManager(xmlDoc.NameTable);
-                nsmgr.AddNamespace("w", xmlDoc.DocumentElement.NamespaceURI);
-                xmlEl = (XmlElement)xmlDoc.SelectSingleNode("/w:footnotes", nsmgr);
+                XmlDoc = new XmlDocument();
+                XmlDoc.LoadXml(file.GetSourceString());
+                FillNamespaces();
+                XmlEl = (XmlElement)XmlDoc.SelectSingleNode("/w:footnotes", Nsmgr);
             }
             catch (FileNotFoundException)
             {
@@ -29,7 +28,6 @@ namespace TDV.Docx
             
         }
 
-
         public override string ToString()
         {
             return string.Join(" ",FindChilds<Footnote>().Where(x=>x.Type==FOOTER_TYPE.NONE));
@@ -37,7 +35,6 @@ namespace TDV.Docx
     }
 
     public enum FOOTER_TYPE { NONE,SEPARATOR, CONTINUATION_SEPAPRATOR }
-
 
     public class Footer : BaseNode
     {
@@ -51,10 +48,10 @@ namespace TDV.Docx
         {
             this.Relationship = relationship;
             this.file = file;
-            xmlDoc = new XmlDocument();
+            XmlDoc = new XmlDocument();
             if(create)
             {
-                xmlDoc.LoadXml($@"<?xml version=""1.0"" encoding=""UTF-8"" standalone=""yes""?>
+                XmlDoc.LoadXml($@"<?xml version=""1.0"" encoding=""UTF-8"" standalone=""yes""?>
 <w:ftr xmlns:wpc=""http://schemas.microsoft.com/office/word/2010/wordprocessingCanvas"" xmlns:mc=""http://schemas.openxmlformats.org/markup-compatibility/2006"" xmlns:o=""urn:schemas-microsoft-com:office:office"" xmlns:r=""http://schemas.openxmlformats.org/officeDocument/2006/relationships"" xmlns:m=""http://schemas.openxmlformats.org/officeDocument/2006/math"" xmlns:v=""urn:schemas-microsoft-com:vml"" xmlns:wp14=""http://schemas.microsoft.com/office/word/2010/wordprocessingDrawing"" xmlns:wp=""http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"" xmlns:w10=""urn:schemas-microsoft-com:office:word"" xmlns:w=""http://schemas.openxmlformats.org/wordprocessingml/2006/main"" xmlns:w14=""http://schemas.microsoft.com/office/word/2010/wordml"" xmlns:w15=""http://schemas.microsoft.com/office/word/2012/wordml"" xmlns:wpg=""http://schemas.microsoft.com/office/word/2010/wordprocessingGroup"" xmlns:wpi=""http://schemas.microsoft.com/office/word/2010/wordprocessingInk"" xmlns:wne=""http://schemas.microsoft.com/office/word/2006/wordml"" xmlns:wps=""http://schemas.microsoft.com/office/word/2010/wordprocessingShape"" mc:Ignorable=""w14 w15 wp14"">
 	<w:p >
 		<w:pPr>
@@ -65,15 +62,12 @@ namespace TDV.Docx
             }
             else
             { 
-                xmlDoc.LoadXml(file.GetSourceString());
+                XmlDoc.LoadXml(file.GetSourceString());
             }
-            nsmgr = new XmlNamespaceManager(xmlDoc.NameTable);
-            nsmgr.AddNamespace("w", xmlDoc.DocumentElement.NamespaceURI);
-            xmlEl = (XmlElement)xmlDoc.SelectSingleNode("/w:ftr", nsmgr);
-            
+            Nsmgr = new XmlNamespaceManager(XmlDoc.NameTable);
+            Nsmgr.AddNamespace("w", XmlDoc.DocumentElement.NamespaceURI);
+            XmlEl = (XmlElement)XmlDoc.SelectSingleNode("/w:ftr", Nsmgr);
         }
-
-
 
         public void ComparePageNumbers(DOC_PART_GALLERY_VALUE pageNumbers,HORIZONTAL_ALIGN hAlign=HORIZONTAL_ALIGN.CENTER,string author="TDV")
         {
@@ -95,7 +89,7 @@ namespace TDV.Docx
                 Paragraph p = Std.SdtContent.P;
                 Ins ins=p.NewNodeLast<Ins>();
                 ins.Author = author;
-                foreach (Node n in p.childNodes)
+                foreach (Node n in p.ChildNodes)
                     if (n is R)
                         n.MoveTo(ins);
             }
@@ -128,9 +122,9 @@ namespace TDV.Docx
                         Std.StdPr.DocPartObj.DocPartGallery.Value = value;
                         Std.StdPr.DocPartObj.DocPartUnique = true;
                         Paragraph p = Std.SdtContent.P;
-                        while(p.childNodes.Count>0)
-                            p.childNodes.First().Delete();
-                        p.pPr.HorizontalAlign = HORIZONTAL_ALIGN.CENTER;
+                        while(p.ChildNodes.Count>0)
+                            p.ChildNodes.First().Delete();
+                        p.PProp.HorizontalAlign = HORIZONTAL_ALIGN.CENTER;
                         R r1 = p.NewNodeLast<R>();
                         r1.NewNodeLast<FldChar>().FldCharType = FLD_CHAR_TYPE.BEGIN;
                         R r2 = p.NewNodeLast<R>();
@@ -138,7 +132,7 @@ namespace TDV.Docx
                         R r3 = p.NewNodeLast<R>();
                         r3.NewNodeLast<FldChar>().FldCharType = FLD_CHAR_TYPE.SEPARATE;
                         R r4 = p.NewNodeLast<R>();
-                        r4.rPr.NoProof = true;
+                        r4.RProp.NoProof = true;
                         r4.t.Text = "2";
                         R r5 = p.NewNodeLast<R>();
                         r5.NewNodeLast<FldChar>().FldCharType = FLD_CHAR_TYPE.END;
@@ -152,11 +146,11 @@ namespace TDV.Docx
         {
             get
             {
-                return Std.SdtContent.P.pPr.HorizontalAlign;
+                return Std.SdtContent.P.PProp.HorizontalAlign;
             }
             set
             {
-                Std.SdtContent.P.pPr.HorizontalAlign =value;
+                Std.SdtContent.P.PProp.HorizontalAlign =value;
             }
         }
 
@@ -167,13 +161,13 @@ namespace TDV.Docx
 
         public new string Text()
         {
-            string result = string.Join(" ", childNodes.Where(x => x is Paragraph).Select(x => ((Paragraph)x).Text));
+            string result = string.Join(" ", ChildNodes.Where(x => x is Paragraph).Select(x => ((Paragraph)x).Text));
             return result;
         }
 
         public override void ApplyAllFixes()
         {
-            foreach (Node n in childNodes)
+            foreach (Node n in ChildNodes)
             {
                 if (n is Paragraph)
                 {
@@ -210,7 +204,7 @@ namespace TDV.Docx
             get
             {
                 FOOTER_TYPE result = FOOTER_TYPE.NONE;
-                switch(xmlEl.GetAttribute("w:type"))
+                switch(XmlEl.GetAttribute("w:type"))
                 {
                     case "separator":
                         result = FOOTER_TYPE.SEPARATOR;
@@ -219,7 +213,7 @@ namespace TDV.Docx
                         result = FOOTER_TYPE.CONTINUATION_SEPAPRATOR;
                         break;
                     default:
-                        Enum.TryParse<FOOTER_TYPE>(xmlEl.GetAttribute("w:type"), true, out result);
+                        Enum.TryParse<FOOTER_TYPE>(XmlEl.GetAttribute("w:type"), true, out result);
                         break;
                 }
                 return result;
@@ -229,13 +223,13 @@ namespace TDV.Docx
                 switch (value)
                 {
                     case FOOTER_TYPE.NONE:
-                        xmlEl.RemoveAttribute("w:type");
+                        XmlEl.RemoveAttribute("w:type");
                         break;
                     case FOOTER_TYPE.CONTINUATION_SEPAPRATOR:
-                        xmlEl.SetAttribute("type", xmlEl.NamespaceURI, "continuationSeparator");
+                        XmlEl.SetAttribute("type", XmlEl.NamespaceURI, "continuationSeparator");
                         break;
                     default:
-                        xmlEl.SetAttribute("type", xmlEl.NamespaceURI, value.ToString().ToLower());
+                        XmlEl.SetAttribute("type", XmlEl.NamespaceURI, value.ToString().ToLower());
                         break;
                 }
             }
@@ -268,7 +262,7 @@ namespace TDV.Docx
             get
             {
                 try { 
-                    return Int32.Parse(xmlEl.GetAttribute("id",xmlEl.NamespaceURI));
+                    return Int32.Parse(XmlEl.GetAttribute("id",XmlEl.NamespaceURI));
                 }
                 catch
                 {
@@ -277,18 +271,18 @@ namespace TDV.Docx
             }
             set
             {
-                xmlEl.SetAttribute("id", xmlEl.NamespaceURI, (value).ToString());
+                XmlEl.SetAttribute("id", XmlEl.NamespaceURI, (value).ToString());
             }
         }
         public string Author
         {
             get
             {
-                return xmlEl.GetAttribute("w:author");
+                return XmlEl.GetAttribute("w:author");
             }
             set
             {
-                xmlEl.SetAttribute("author", xmlEl.NamespaceURI, value);
+                XmlEl.SetAttribute("author", XmlEl.NamespaceURI, value);
             }
         }
 
@@ -298,7 +292,7 @@ namespace TDV.Docx
             {
                 try
                 {
-                    return DateTime.Parse(xmlEl.GetAttribute("w:date"));
+                    return DateTime.Parse(XmlEl.GetAttribute("w:date"));
                 }catch
                 {
                     return null;
@@ -307,19 +301,19 @@ namespace TDV.Docx
             set
             {
                 if(value==null)
-                    xmlEl.RemoveAttribute("date", xmlEl.NamespaceURI);
+                    XmlEl.RemoveAttribute("date", XmlEl.NamespaceURI);
                 else
-                    xmlEl.SetAttribute("date", xmlEl.NamespaceURI, ((DateTime)value).ToString("yyyy-MM-ddTHH:mm:ssZ"));
+                    XmlEl.SetAttribute("date", XmlEl.NamespaceURI, ((DateTime)value).ToString("yyyy-MM-ddTHH:mm:ssZ"));
             }
         }
 
         public override void InitXmlElement()
         {
             base.InitXmlElement();
-            if (string.IsNullOrEmpty(xmlEl.GetAttribute("id", xmlEl.NamespaceURI)))
-                xmlEl.SetAttribute("id", xmlEl.NamespaceURI, (xmlDoc.GetLastId(0) + 1).ToString());
+            if (string.IsNullOrEmpty(XmlEl.GetAttribute("id", XmlEl.NamespaceURI)))
+                XmlEl.SetAttribute("id", XmlEl.NamespaceURI, (GetDocxDocument().Document.GetLastId() + 1).ToString());
             Author = "TDV";
-            xmlEl.SetAttribute("date", xmlEl.NamespaceURI, DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ssZ"));
+            XmlEl.SetAttribute("date", XmlEl.NamespaceURI, DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ssZ"));
         }
 
         public override string ToString()
@@ -336,16 +330,14 @@ namespace TDV.Docx
     public class CustomXmlInsRangeEnd : Node
     {
         public CustomXmlInsRangeEnd() : base("w:customXmlInsRangeEnd") { }
-        public CustomXmlInsRangeEnd(XmlElement xmlElement, Node parent) : base(xmlElement, parent, "w:customXmlInsRangeEnd")
-        {
-        }
+        public CustomXmlInsRangeEnd(XmlElement xmlElement, Node parent) : base(xmlElement, parent, "w:customXmlInsRangeEnd"){}
         public int Id
         {
             get
             {
                 try
                 {
-                    return Int32.Parse(xmlEl.GetAttribute("w:id", xmlEl.NamespaceURI));
+                    return Int32.Parse(XmlEl.GetAttribute("w:id", XmlEl.NamespaceURI));
                 }
                 catch
                 {
@@ -354,7 +346,7 @@ namespace TDV.Docx
             }
             set
             {
-                xmlEl.SetAttribute("id", xmlEl.NamespaceURI, (value).ToString());
+                XmlEl.SetAttribute("id", XmlEl.NamespaceURI, (value).ToString());
             }
         }
 
@@ -362,7 +354,6 @@ namespace TDV.Docx
         {
             return $"w:customXmlInsRangeEnd id={Id}";
         }
-
     }
 
     public class Sdt : Node
@@ -386,7 +377,7 @@ namespace TDV.Docx
 
         public override void ApplyAllFixes()
         {
-            foreach (Node n in childNodes)
+            foreach (Node n in ChildNodes)
             {
                 if (n is Paragraph)
                 {
@@ -437,11 +428,11 @@ namespace TDV.Docx
         {
             get
             {
-                return xmlEl.GetAttribute("w:val");
+                return XmlEl.GetAttribute("w:val");
             }
             set
             {
-                xmlEl.SetAttribute("val", nsmgr.LookupNamespace("w"), value);
+                XmlEl.SetAttribute("val", Nsmgr.LookupNamespace("w"), value);
             }
         }
     }
@@ -474,21 +465,21 @@ namespace TDV.Docx
         {
             get
             {
-                bool result = childNodes.Where(x => x.xmlEl.Name == "docPartUnique").Any();
+                bool result = ChildNodes.Where(x => x.XmlEl.Name == "docPartUnique").Any();
                 return result;
             }
             set
             {
                 if(value)
-                    if(!childNodes.Where(x => x.xmlEl.Name == "w:docPartUnique").Any())
+                    if(!ChildNodes.Where(x => x.XmlEl.Name == "w:docPartUnique").Any())
                     {
-                        xmlEl.AppendChild(xmlDoc.CreateElement("w:docPartUnique", xmlDoc.DocumentElement.NamespaceURI));
+                        XmlEl.AppendChild(XmlDoc.CreateElement("w:docPartUnique", XmlDoc.DocumentElement.NamespaceURI));
                     }
                 else
                 {
-                    XmlElement forDel = childNodes.Where(x => x.xmlEl.Name == "docPartUnique").FirstOrDefault()?.xmlEl;
+                    XmlElement forDel = ChildNodes.Where(x => x.XmlEl.Name == "docPartUnique").FirstOrDefault()?.XmlEl;
                     if (forDel != null)
-                        xmlDoc.RemoveChild(forDel);
+                        XmlDoc.RemoveChild(forDel);
                 }
             }
         }
@@ -502,7 +493,7 @@ namespace TDV.Docx
         {
             get{
                 DOC_PART_GALLERY_VALUE result = DOC_PART_GALLERY_VALUE.UNKNOWN;
-                switch (xmlEl.GetAttribute("w:val"))
+                switch (XmlEl.GetAttribute("w:val"))
                 {
                     case "Page Numbers (Bottom of Page)":
                         result = DOC_PART_GALLERY_VALUE.PAGE_NUMBERS_BOTTOM_OF_PAGE;
@@ -517,10 +508,10 @@ namespace TDV.Docx
                 {
                     default:
                     case DOC_PART_GALLERY_VALUE.UNKNOWN:
-                        xmlEl.RemoveAttribute("val", xmlEl.NamespaceURI);
+                        XmlEl.RemoveAttribute("val", XmlEl.NamespaceURI);
                         break;
                     case DOC_PART_GALLERY_VALUE.PAGE_NUMBERS_BOTTOM_OF_PAGE:
-                        xmlEl.SetAttribute("val", xmlEl.NamespaceURI, "Page Numbers (Bottom of Page)");
+                        XmlEl.SetAttribute("val", XmlEl.NamespaceURI, "Page Numbers (Bottom of Page)");
                         break;
                 }
             }
@@ -537,7 +528,7 @@ namespace TDV.Docx
         {
             get
             {
-                switch (xmlEl.GetAttribute("w:fldCharType"))
+                switch (XmlEl.GetAttribute("w:fldCharType"))
                 {
                     case "begin":
                         return FLD_CHAR_TYPE.BEGIN;                        
@@ -546,7 +537,7 @@ namespace TDV.Docx
                     case "end":
                         return FLD_CHAR_TYPE.END;
                     default:
-                        throw new NotImplementedException($"Не реализовано для w:fldCharType={xmlEl.GetAttribute("w:fldCharType")}");
+                        throw new NotImplementedException($"Не реализовано для w:fldCharType={XmlEl.GetAttribute("w:fldCharType")}");
                 }
             }
             set
@@ -556,13 +547,13 @@ namespace TDV.Docx
                     default:
                     case FLD_CHAR_TYPE.BEGIN:
 
-                        xmlEl.SetAttribute("fldCharType", xmlEl.NamespaceURI, "begin");
+                        XmlEl.SetAttribute("fldCharType", XmlEl.NamespaceURI, "begin");
                         break;
                     case FLD_CHAR_TYPE.SEPARATE:
-                        xmlEl.SetAttribute("fldCharType", xmlEl.NamespaceURI, "separate");
+                        XmlEl.SetAttribute("fldCharType", XmlEl.NamespaceURI, "separate");
                         break;
                     case FLD_CHAR_TYPE.END:
-                        xmlEl.SetAttribute("fldCharType", xmlEl.NamespaceURI, "end");
+                        XmlEl.SetAttribute("fldCharType", XmlEl.NamespaceURI, "end");
                         break;
                 }
             }
@@ -581,7 +572,7 @@ namespace TDV.Docx
         {
             get
             {
-                return xmlEl.GetAttribute("r:id");
+                return XmlEl.GetAttribute("r:id");
             }
             set
             {
@@ -589,7 +580,15 @@ namespace TDV.Docx
                 
             }
         }
-
+        public Footer Footer
+        {
+            get
+            {
+                if (string.IsNullOrEmpty(Id))
+                    return null;
+                return GetDocxDocument().GetFooter(Id);
+            }
+        }
 
         public REFERENCE_TYPE Type
         {
@@ -604,7 +603,7 @@ namespace TDV.Docx
                     case "default":
                         return REFERENCE_TYPE.DEFAULT;
                 }
-                throw new NotImplementedException($"Не реализовано для типа {xmlEl.GetAttribute("w:type")}"); 
+                throw new NotImplementedException($"Не реализовано для типа {XmlEl.GetAttribute("w:type")}"); 
             }
             set
             {
@@ -624,7 +623,6 @@ namespace TDV.Docx
                 SetAttribute("w:type", stringType);
             }
         }
-
     }
     
 }
