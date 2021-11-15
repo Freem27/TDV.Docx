@@ -1,6 +1,0 @@
-Z:\Programming\c#\TDV.Docx\TDVDocx\obj\Debug\TDVDocx.csproj.CoreCompileInputs.cache
-Z:\Programming\c#\TDV.Docx\TDVDocx\bin\Debug\TDV.Docx.dll
-Z:\Programming\c#\TDV.Docx\TDVDocx\bin\Debug\TDV.Docx.pdb
-Z:\Programming\c#\TDV.Docx\TDVDocx\obj\Debug\TDV.Docx.dll
-Z:\Programming\c#\TDV.Docx\TDVDocx\obj\Debug\TDV.Docx.pdb
-Z:\Programming\c#\TDV.Docx\TDVDocx\obj\Debug\TDVDocx.csproj.AssemblyReference.cache
