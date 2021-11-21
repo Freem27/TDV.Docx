@@ -45,6 +45,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Theme.cs" />
     <Compile Include="Comments.cs" />
     <Compile Include="Document.cs" />
     <Compile Include="DocxDocument.cs" />

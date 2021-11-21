@@ -78,9 +78,43 @@ namespace TDV.Docx
 
     public class RunStyle
     {
+        public static bool operator ==(RunStyle a, RunStyle b)
+        {
+            if (a is null && b is null)
+                return true;
+            if (!(a is null) && !(b is null))
+            {
+                if (a.isBold == b.isBold &&
+                    a.font == b.font &&
+                    a.fontSize == b.fontSize &&
+                    a.isItalic == b.isItalic &&
+                    a.isStrike == b.isStrike &&
+                    a.underline == b.underline &&
+                    a.color == b.color &&
+                    a.highlight == b.highlight &&
+                    a.border == b.border)
+                    return true;
+                else 
+                    return false;
+            }
+            else
+                return false;
+        }
+
+        public RunStyle SetIsBold(bool value)
+        {
+            isBold = value;
+            return this;
+        }
+
+        public static bool operator !=(RunStyle a, RunStyle b)
+        {
+
+            return !(a==b);
+        }
         public RunStyle(bool isBold,
             string font,
-            double fontSize,
+            double? fontSize,
             bool isItalic,
             bool isStrike,
             LINE_TYPE underline,
@@ -100,7 +134,7 @@ namespace TDV.Docx
         }
         public bool isBold;
         public string font;
-        public double fontSize;
+        public double? fontSize;
         public bool isItalic;
         public bool isStrike;
         public LINE_TYPE underline;
@@ -111,11 +145,12 @@ namespace TDV.Docx
         {
             return new RunStyle(isBold,font,fontSize,isItalic,isStrike,underline,color,highlight,border);
         }
+        
     }
 
     public enum HORIZONTAL_ALIGN {LEFT,CENTER,RIGHT,BOTH}
 
-    public enum BORDER
+    public enum BORDER_TYPE
     {
         LEFT,RIGHT,TOP,BOTTOM,
         /// <summary>
@@ -148,6 +183,18 @@ namespace TDV.Docx
             disableNodeChanged = false;
         }
 
+        public static bool operator ==(Node a, Node b)
+        {
+            if (a is null && b is null)
+                return true;
+            if (a is null || b is null)
+                return false;
+            return a.XmlEl == b.XmlEl;
+        }
+        public static bool operator !=(Node a, Node b)
+        {
+            return !(a == b);
+        }
         protected bool disableNodeChanged;
         public Section Section
         {
@@ -261,7 +308,7 @@ namespace TDV.Docx
         public XmlNamespaceManager Nsmgr;
         public Node Parent;
 
-        protected string qualifiedName;
+        internal string qualifiedName;
 
         public virtual void NodeChanded()
         {
@@ -277,7 +324,7 @@ namespace TDV.Docx
                 return Parent.GetParentRecurcieve<T>();
         }
 
-        public T FindChild<T>() where T : Node
+        public T FindChild<T>() where T:Node
         {
             return (T)ChildNodes.Where(x => x is T).FirstOrDefault();
         }
@@ -343,7 +390,7 @@ namespace TDV.Docx
                 localName = name.Split(':')[1];
             }
 
-            if (XmlEl.HasAttribute(localName))
+            if (XmlEl.HasAttribute(localName)|| XmlEl.HasAttribute(localName, Nsmgr.LookupNamespace(prefix)))
             {
                 if (prefix != null)
                     XmlEl.RemoveAttribute(localName, Nsmgr.LookupNamespace(prefix));
@@ -352,8 +399,7 @@ namespace TDV.Docx
             }
         }
 
-
-        public T FindChildOrCreate<T>(INSERT_POS pos=INSERT_POS.LAST) where T : Node
+        public T FindChildOrCreate<T>(INSERT_POS pos = INSERT_POS.LAST) where T : Node
         {
             T result= (T)ChildNodes.Where(x => x is T).FirstOrDefault();
             if(result==null)
@@ -725,6 +771,75 @@ namespace TDV.Docx
                         case "w:pStyle":
                             result.Add(new PStyle(item,this));
                             break;
+                        case "w:rFonts":
+                            result.Add(new RFonts(item,this));
+                            break;
+                        case "w:b":
+                            result.Add(new B(item,this));
+                            break;
+                        case "w:i":
+                            result.Add(new I(item,this));
+                            break;
+                        case "w:strike":
+                            result.Add(new Strike(item,this));
+                            break;
+                        case "w:pict":
+                            result.Add(new Pict(item,this));
+                            break;
+                        case "w:titlePg":
+                            result.Add(new TitlePg(item, this));
+                            break;
+                        case "a:themeElements":
+                            result.Add(new ThemeElements(item, this));
+                            break;
+                        case "a:fontScheme":
+                            result.Add(new FontScheme(item, this));
+                            break;
+                        case "a:majorFont":
+                            result.Add(new MajorFont(item, this));
+                            break;
+                        case "a:latin":
+                            result.Add(new Latin(item, this));
+                            break;
+                        case "a:objectDefaults":
+                            result.Add(new ObjectDefaults(item, this));
+                            break;
+                        case "w:top":
+                            result.Add(new Top(item, this));
+                            break;
+                        case "w:left":
+                            result.Add(new Left(item, this));
+                            break;
+                        case "w:bottom":
+                            result.Add(new Bottom(item, this));
+                            break;
+                        case "w:right":
+                            result.Add(new Right(item, this));
+                            break;
+                        case "w:insideH":
+                            result.Add(new InsideH(item, this));
+                            break;
+                        case "w:insideV":
+                            result.Add(new InsideV(item, this));
+                            break;
+                        case "a:clrScheme":
+                            result.Add(new ClrScheme(item, this));
+                            break;
+                        case "a:srgbClr":
+                            result.Add(new SrgbClr(item, this));
+                            break;
+                        case "w:proofErr":
+                            result.Add(new ProofErr(item, this));
+                            break;
+                        case "w:bookmarkEnd":
+                            result.Add(new BookmarkEnd(item, this));
+                            break;
+                        case "w:bookmarkStart":
+                            result.Add(new BookmarkStart(item, this));
+                            break;
+                        case "w:br":
+                            result.Add(new Br(item, this));
+                            break;
                         default:
                             result.Add(new Node(item, this, item.Name));
                             break;
@@ -743,44 +858,58 @@ namespace TDV.Docx
         }
 
         internal List<Node> baseStyleNodes = new List<Node>();
-
-        public virtual void CreateChangeNode(string changeNodeName = "w:pPrChange", XmlElement moveChangeNodeTo = null, string author = "TDV")
+        private bool ChangeNodeCreated=false;
+        public void CreateChangeNode<T>(string author) where T:ChangeNode
         {
-            XmlElement oldNode = this.CopyXmlElement();
-            if (moveChangeNodeTo == null)
-                moveChangeNodeTo = XmlEl;
-            XmlElement nChange = (XmlElement)moveChangeNodeTo.SelectSingleNode(changeNodeName, Nsmgr);
-            //создать ноду w: rPrChange если она не создана
-            if (nChange == null)
-            {
-                nChange = XmlDoc.CreateElement(changeNodeName, XmlDoc.DocumentElement.NamespaceURI);
-                nChange.SetAttribute("id", XmlEl.NamespaceURI, (GetDocxDocument().Document.GetLastId() + 1).ToString());
-                moveChangeNodeTo.AppendChild(nChange);
-            }
-            if (nChange.SelectSingleNode(oldNode.Name, Nsmgr) == null)
-                nChange.AppendChild(oldNode); //Скопировать в нее этот rPr
-            nChange.SetAttribute("author", XmlEl.NamespaceURI, author);
-            nChange.SetAttribute("date", XmlEl.NamespaceURI, DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ssZ"));
-
-            if (changeNodeName == "w:pPrChange")
-            {
-                var rprForDel = nChange.SelectSingleNode("w:rPr", Nsmgr);
-                if(rprForDel!=null)
-                    nChange.RemoveChild(rprForDel);
-            }else if (changeNodeName == "w:sectPrChange")
-            {
-                var sectChangeNode = nChange.SelectSingleNode("w:sectPr", Nsmgr);
-                foreach (XmlElement forDel in sectChangeNode.SelectNodes("w:headerReference", Nsmgr))
-                    sectChangeNode.RemoveChild(forDel);
-                foreach (XmlElement forDel in sectChangeNode.SelectNodes("w:footerReference", Nsmgr))
-                    sectChangeNode.RemoveChild(forDel);
-
-            }
+            if (ChangeNodeCreated)
+                return;
+            if(Parent.FindChild<T>()!=null || FindChild<T>()!=null)
+                return;
+                //return (T) FindChild<T>();
+            ChangeNode changeNode = NewNodeLast<T>();
+            if (changeNode == null)
+                throw new NotImplementedException();
+            ChangeNodeCreated = true;
+            changeNode.Author = author;
+            //return (T)changeNode;
         }
+        //public virtual void CreateChangeNode(string changeNodeName = "w:pPrChange", XmlElement moveChangeNodeTo = null, string author = "TDV")
+        //{
+        //    XmlElement oldNode = this.CopyXmlElement();
+        //    if (moveChangeNodeTo == null)
+        //        moveChangeNodeTo = XmlEl;
+        //    XmlElement nChange = (XmlElement)moveChangeNodeTo.SelectSingleNode(changeNodeName, Nsmgr);
+        //    //создать ноду w: rPrChange если она не создана
+        //    if (nChange == null)
+        //    {
+        //        nChange = XmlDoc.CreateElement(changeNodeName, XmlDoc.DocumentElement.NamespaceURI);
+        //        nChange.SetAttribute("id", XmlEl.NamespaceURI, (GetDocxDocument().Document.GetNextId()).ToString());
+        //        moveChangeNodeTo.AppendChild(nChange);
+        //    }
+        //    if (nChange.SelectSingleNode(oldNode.Name, Nsmgr) == null)
+        //        nChange.AppendChild(oldNode); //Скопировать в нее этот rPr
+        //    nChange.SetAttribute("author", XmlEl.NamespaceURI, author);
+        //    nChange.SetAttribute("date", XmlEl.NamespaceURI, DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ssZ"));
+
+        //    if (changeNodeName == "w:pPrChange")
+        //    {
+        //        var rprForDel = nChange.SelectSingleNode("w:rPr", Nsmgr);
+        //        if(rprForDel!=null)
+        //            nChange.RemoveChild(rprForDel);
+        //    }else if (changeNodeName == "w:sectPrChange")
+        //    {
+        //        var sectChangeNode = nChange.SelectSingleNode("w:sectPr", Nsmgr);
+        //        foreach (XmlElement forDel in sectChangeNode.SelectNodes("w:headerReference", Nsmgr))
+        //            sectChangeNode.RemoveChild(forDel);
+        //        foreach (XmlElement forDel in sectChangeNode.SelectNodes("w:footerReference", Nsmgr))
+        //            sectChangeNode.RemoveChild(forDel);
+
+        //    }
+        //}
 
         public XmlElement XmlEl;
     
-        public void Delete()
+        public virtual void Delete()
         {
             if (Parent != null && Parent.XmlEl.SelectSingleNode(XmlEl.Name, Nsmgr)!=null)
             {
@@ -794,7 +923,20 @@ namespace TDV.Docx
             if(nodeTo.Parent!=this)
                 nodeTo.XmlEl.AppendChild(XmlEl);
         }
-        
+
+        public void MoveAfter(Node after)
+        {
+            Node nodeTo = after.Parent;
+            Delete();
+            nodeTo.XmlEl.InsertAfter(XmlEl,after.XmlEl);
+        }
+        public void MoveBefore(Node before)
+        {
+            Node nodeTo = before.Parent;
+            Delete();
+            nodeTo.XmlEl.InsertBefore(XmlEl, before.XmlEl);
+        }
+
         public void Clear()
         {
             XmlEl.RemoveAll();

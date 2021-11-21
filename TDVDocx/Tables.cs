@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows.Forms.VisualStyles;
 using System.Xml;
 
 namespace TDV.Docx
@@ -211,13 +212,16 @@ namespace TDV.Docx
         /// </summary>
         internal void CreateChangeNodes(string author = "TDV")
         {
-            TblPr.CreateChangeNode("w:tblPrChange", TblPr.XmlEl, author);
-            TblGrid.CreateChangeNode("w:tblGridChange", TblGrid.XmlEl, author);
-            foreach (Tr row in Rows)
-            {
-                row.trPr.CreateChangeNode(author);
-                foreach (Tc cell in row.Cells)
-                    cell.TcProp.CreateChangeNode(author);
+            if(TblPr.FindChild<TblPrChange>()==null)
+            { 
+                TblPr.CreateChangeNode<TblPrChange>(author);
+                TblGrid.CreateChangeNode<TblGridChange>(author);
+                foreach (Tr row in Rows)
+                {
+                    row.trPr.CreateChangeNode<TrPrChange>(author);
+                    foreach (Tc cell in row.Cells)
+                        cell.TcProp.CreateChangeNode<TcPrChange>(author);
+                }
             }
         }
         public override void ApplyAllFixes()
@@ -250,7 +254,7 @@ namespace TDV.Docx
             }
         }
 
-        public void CompateStyle(TableStyle style, string author = "TDV")
+        public void CompareStyle(TableStyle style, string author = "TDV")
         {
             CompareBorders(style.BorderLeft, style.BorderRight, style.BorderTop, style.BorderBottom,
                 style.BorderInsideH, style.BorderInsideV, style.ApplyBorderToCells, author);
@@ -266,18 +270,13 @@ namespace TDV.Docx
         }
         public void CompareBorders(Border left, Border right, Border top, Border bottom, Border insideH, Border insideV, bool applyToCells, string author = "TDV")
         {
-            TblPr.TblBorders.CompareBorder(BORDER.LEFT, left, author);
-            TblPr.TblBorders.CompareBorder(BORDER.RIGHT, right, author);
-            TblPr.TblBorders.CompareBorder(BORDER.TOP, top, author);
-            TblPr.TblBorders.CompareBorder(BORDER.BOTTOM, bottom, author);
-            TblPr.TblBorders.CompareBorder(BORDER.INSIDE_H, insideH, author);
-            TblPr.TblBorders.CompareBorder(BORDER.INSIDE_V, insideV, author);
+            TblPr.TblBorders.CompareBorders(top,bottom,left,right,insideH,insideV, author);
             foreach(Tr tr in Rows)
             foreach (Tc tc in tr.Cells)
             {
                 if (applyToCells)
                     tc.CompareBorders(left, right, top, bottom, false, author);
-                tc.TcProp.CreateChangeNode(author);
+                
             }
         }
 
@@ -334,20 +333,19 @@ namespace TDV.Docx
         {
             get
             {
-                var result = ChildNodes.Where(x => x is TblBorders).Select(x => x).FirstOrDefault();
-                if (result == null)
-                    result = new TblBorders(this);
-                return (TblBorders)result;
+                return FindChildOrCreate<TblBorders>();
             }
         }
 
-        public Style CurrStyle {
+        public Style Style
+        {
             get
             {
-                TblStyle el = (TblStyle) ChildNodes.Where(x=>x is TblStyle).FirstOrDefault();
-                if (el == null)
-                    return null;
-                return GetDocxDocument().Styles.GetStyleById(el.StyleId);
+                return FindChild<TblStyle>()?.Style ?? null;
+            }
+            set
+            {
+                FindChildOrCreate<TblStyle>().Style = value;
             }
         }
 
@@ -406,6 +404,43 @@ namespace TDV.Docx
         public string StyleId
         {
             get { return XmlEl.GetAttribute("w:val"); }
+        }
+
+        public string Value
+        {
+            get
+            {
+                try
+                {
+                    return GetAttribute("w:val");
+                }
+                catch (KeyNotFoundException)
+                {
+                    return null;
+                }
+            }
+            set
+            {
+                if (string.IsNullOrEmpty(value))
+                    RemoveAttribute("w:val");
+                else
+                    SetAttribute("w:val", value);
+            }
+        }
+
+        public Style Style
+        {
+            get
+            {
+                if (string.IsNullOrEmpty(Value))
+                    return null;
+                DocxDocument docx = GetDocxDocument();
+                return docx.Styles.GetStyleById(Value);
+            }
+            set
+            {
+                Value = value.StyleId;
+            }
         }
 
     }
@@ -622,12 +657,22 @@ namespace TDV.Docx
         public TrProp(Node parent) : base(parent, "w:trPr") { }
         public TrProp(XmlElement xmlElement, Node parent) : base(xmlElement, parent, "w:trPr") { }
 
+        private Table _parentTable;
+        public Table ParentTable
+        {
+            get
+            {
+                if (_parentTable == null)
+                    _parentTable = GetParentRecurcieve<Table>();
+                return _parentTable;
+            }
+        }
 
-
+        /*
         public void CreateChangeNode(string author="TDV")
         {
             CreateChangeNode("w:trPrChange", XmlEl, author);
-        }
+        }*/
         /// <summary>
         /// Изменение высоты строки в режиме правки
         /// </summary>
@@ -637,7 +682,8 @@ namespace TDV.Docx
         {
             if ( TrHeight.Value != heigth)
             {
-                CreateChangeNode(author);
+                //CreateChangeNode<TcPrChange>(author);
+                ParentTable.CreateChangeNodes(author);
                 TrHeight.Value = heigth;
             }
         }
@@ -661,7 +707,7 @@ namespace TDV.Docx
             if (cNode == null)
             {
                 cNode = (XmlElement)XmlDoc.CreateElement($"w:{mode}", XmlEl.NamespaceURI);
-                cNode.SetAttribute("id", XmlEl.NamespaceURI, (GetDocxDocument().Document.GetLastId() + 1).ToString());
+                cNode.SetAttribute("id", XmlEl.NamespaceURI, (GetDocxDocument().Document.GetNextId()).ToString());
                 XmlEl.InsertBefore(cNode, XmlEl.FirstChild);
             }
             cNode.SetAttribute("author", XmlEl.NamespaceURI, author);
@@ -703,86 +749,97 @@ namespace TDV.Docx
         public TblBorders(Node parent) : base(parent, "w:tblBorders") { }
         public TblBorders(XmlElement xmlElement, Node parent) : base(xmlElement, parent, "w:tblBorders") { }
 
-        public void CompareBorder(BORDER type, Border b, string author = "TDV")
+        public void CompareBorders(Border Top,Border Bottom,Border Left,Border Right,Border InsideH,Border InsideV, string author = "TDV")
         {
-            Border currBorder = GetBorder(type);
-
-            if (currBorder != b)
+            if (Top != this.Top||Bottom!=this.Bottom||Left!=this.Left||Right!=this.Right||InsideH!=this.InsideH||InsideV!=this.InsideV)
             {
-                Table table = GetParentRecurcieve<Table>();
-                table.CreateChangeNodes(author);
-                //parent.CreateChangeNode("w:tblPrChange", (XmlElement)xmlEl.ParentNode, author);
-                //table.tblGrid.CreateChangeNode("w:tblGridChange", table.tblGrid.xmlEl, author);
-                SetBorder(type, b);
+                ParentTable.CreateChangeNodes(author);
+            }
+            if(Top != this.Top)
+                this.Top = Top;
+            if (Bottom != this.Bottom)
+                this.Bottom = Bottom;
+            if (Left != this.Left)
+                this.Left = Left;
+            if (Right != this.Right)
+                this.Right = Right;
+            if (InsideV != this.InsideV)
+                this.InsideV = InsideV;
+            if (InsideH != this.InsideH)
+                this.InsideH = InsideH;
+        }
+        private Table _parentTable;
+        public Table ParentTable
+        {
+            get
+            {
+                if (_parentTable == null)
+                    _parentTable = GetParentRecurcieve<Table>();
+                return _parentTable;
             }
         }
 
         public Border Left
         {
-            get { return GetBorder(BORDER.BOTTOM); }
-            set { SetBorder(BORDER.LEFT, value); }
+            get { 
+                return FindChild<Left>()?.Border?? ParentTable?.TblPr?.Style?.FindChild<TableProp>()?.FindChild<TblBorders>()?.FindChild<Left>()?.Border;
+            }
+            set
+            {
+                FindChildOrCreate<Left>().Border=value;
+            }
         }
         public Border Right
         {
-            get { return GetBorder(BORDER.BOTTOM); }
-            set { SetBorder(BORDER.RIGHT, value); }
+            get
+            {
+                return FindChild<Right>()?.Border ?? ParentTable?.TblPr?.Style?.FindChild<TableProp>()?.FindChild<TblBorders>()?.FindChild<Right>()?.Border;
+            }
+            set { FindChildOrCreate<Right>().Border = value; }
         }
         public Border Top
         {
-            get { return GetBorder(BORDER.BOTTOM); }
-            set { SetBorder(BORDER.TOP, value); }
+            get
+            {
+                return FindChild<Top>()?.Border ?? ParentTable?.TblPr?.Style?.FindChild<TableProp>()?.FindChild<TblBorders>()?.FindChild<Top>()?.Border;
+            }
+            set { FindChildOrCreate<Top>().Border = value; }
         }
         public Border Bottom
         {
-            get { return GetBorder(BORDER.BOTTOM); }
-            set { SetBorder(BORDER.BOTTOM, value); }
+            get
+            {
+                return FindChild<Bottom>()?.Border ?? ParentTable?.TblPr?.Style?.FindChild<TableProp>().FindChild<TblBorders>()?.FindChild<Bottom>()?.Border;
+            }
+            set { FindChildOrCreate<Bottom>().Border = value; }
         }
         public Border InsideH
         {
-            get { return GetBorder(BORDER.INSIDE_H); }
-            set { SetBorder(BORDER.INSIDE_H, value); }
+            get
+            {
+                return FindChild<InsideH>()?.Border ?? ParentTable?.TblPr?.Style?.FindChild<TableProp>()?.FindChild<TblBorders>()?.FindChild<InsideH>()?.Border;
+            }
+            set { FindChildOrCreate<InsideH>().Border = value; }
         }
         public Border InsideV
         {
-            get { return GetBorder(BORDER.INSIDE_V); }
-            set { SetBorder(BORDER.INSIDE_V, value); }
-        }
-
-        private Border GetBorder(BORDER type)
-        {
-
-            string localName = "";
-            switch (type)
+            get
             {
-                case BORDER.LEFT:
-                    localName = "left";
-                    break;
-                case BORDER.RIGHT:
-                    localName = "right";
-                    break;
-                case BORDER.TOP:
-                    localName = "top";
-                    break;
-                case BORDER.BOTTOM:
-                    localName = "bottom";
-                    break;
-                case BORDER.INSIDE_H:
-                    localName = "insideH";
-                    break;
-                case BORDER.INSIDE_V:
-                    localName = "insideV";
-                    break;
-                default:
-                    break;
+                return FindChild<InsideV>()?.Border ?? ParentTable?.TblPr?.Style?.FindChild<TableProp>()?.FindChild<TblBorders>()?.FindChild<InsideV>()?.Border;
             }
-            Style style = ((TableProp)Parent).CurrStyle;
-            XmlElement n = (XmlElement)XmlEl.SelectSingleNode($"w:{localName}", Nsmgr);
+            set { FindChildOrCreate<InsideV>().Border = value; }
+        }
+        /*
+        private Border GetBorder(BORDER_TYPE type)
+        {
+            Style style = ((TableProp)Parent).Style;
+            XmlElement n = (XmlElement)XmlEl.SelectSingleNode($"w:{type.ToStringValue()}", Nsmgr);
             Border b = new Border();
             if (n == null && style != null)
             {
                 TableProp styleTableProp = style.GetStyleProp<TableProp>();
                 if(styleTableProp != null)
-                    n= (XmlElement)styleTableProp.XmlEl.SelectSingleNode($"w:tblBorders/w:{localName}", Nsmgr);
+                    n= (XmlElement)styleTableProp.XmlEl.SelectSingleNode($"w:tblBorders/w:{type.ToStringValue()}", Nsmgr);
             }
             if (n != null)
             {
@@ -797,7 +854,7 @@ namespace TDV.Docx
             return b;
         }
 
-        private void SetBorder(BORDER type, Border b)
+        private void SetBorder(BORDER_TYPE type, Border b)
         {
             string prefix = "w";
             XmlElement n = (XmlElement)XmlEl.SelectSingleNode($"{prefix}:{type.ToStringValue()}", Nsmgr);
@@ -810,7 +867,162 @@ namespace TDV.Docx
             n.SetAttribute("sz", XmlEl.NamespaceURI, b.size.ToString());
             n.SetAttribute("space", XmlEl.NamespaceURI, b.space.ToString());
             n.SetAttribute("color", XmlEl.NamespaceURI, b.color);
+        }*/
+    }
+
+    public class BorderNode : Node, IEquatable<BorderNode>
+    {
+        public BorderNode(string qualifiedName) : base(qualifiedName) { }
+        public BorderNode(Node parent, string qualifiedName) : base(parent, qualifiedName) { }
+
+        public BorderNode(XmlElement xmlElement, Node parent, string qualifiedName) : base(xmlElement, parent, qualifiedName) { }
+
+        public Border Border
+        {
+            get
+            {
+                return new Border(LineType, Sz, Space, Color);
+            }
+            set
+            {
+                LineType = value.type;
+                Sz = value.size;
+                Space = value.space;
+                Color = value.color;
+            }
         }
+        public bool Equals(BorderNode other)
+        {
+            if (this == null && other == null)
+                return true;
+            if ((other == null && this != null) || (other != null && this == null))
+                return false;
+            return Sz == other.Sz && Space == other.Space && LineType == other.LineType && Color == other.Color;
+        }
+        public LINE_TYPE LineType
+        {
+            get
+            {
+                if (HasAttribute("w:val"))
+                    return EnumExtentions.ToEnum<LINE_TYPE>(GetAttribute("w:val"));
+                else
+                    return LINE_TYPE.NONE;
+            }
+            set
+            {
+                SetAttribute("w:val",value.ToStringValue());
+            }
+        }
+        public int Sz
+        {
+            get
+            {
+                if (HasAttribute("w:sz"))
+                    return Int32.Parse(GetAttribute("w:sz"));
+                return 0;
+            }
+            set
+            {
+                SetAttribute("w:sz", value.ToString());
+                NodeChanded();
+            }
+        }
+        public int Space
+        {
+            get
+            {
+                if (HasAttribute("w:space"))
+                    return Int32.Parse(GetAttribute("w:space"));
+                return 0;
+            }
+            set
+            {
+                SetAttribute("w:space", value.ToString());
+                NodeChanded();
+            }
+        }
+
+
+
+        public string ThemeColor
+        {
+            get
+            {
+                if (HasAttribute("w:themeColor"))
+                    return GetAttribute("w:themeColor");
+                else
+                    return null;
+            }
+        }
+
+        public string Color
+        {
+            get
+            {
+                if (HasAttribute("w:color"))
+                    return GetAttribute("w:color");
+                if (!string.IsNullOrEmpty(ThemeColor))
+                {
+                    DocxDocument docx = GetDocxDocument();
+                    return docx.ThemeDefault.ThemeElements.ClrScheme.ChildNodes.Where(x => x.XmlEl.Name == ThemeColor)
+                        .FirstOrDefault()?.FindChild<SrgbClr>()?.Value??"auto";
+                }
+                    return "auto";
+            }
+            set
+            {
+                if (string.IsNullOrEmpty(value))
+                    RemoveAttribute("w:color");
+                else
+                    SetAttribute("w:color", value.Replace("000000","auto"));
+
+                RemoveAttribute("w:themeColor");
+                NodeChanded();
+            }
+        }
+    }
+
+    public class Top : BorderNode
+    {
+        public Top() : base("w:top") { }
+        public Top(Node parent) : base(parent, "w:top") { }
+
+        public Top(XmlElement xmlElement, Node parent) : base(xmlElement, parent, "w:top") { }
+    }
+    public class Left : BorderNode
+    {
+        public Left() : base("w:left") { }
+        public Left(Node parent) : base(parent, "w:left") { }
+
+        public Left(XmlElement xmlElement, Node parent) : base(xmlElement, parent, "w:left") { }
+    }
+    public class Bottom : BorderNode
+    {
+        public Bottom() : base("w:bottom") { }
+        public Bottom(Node parent) : base(parent, "w:bottom") { }
+
+        public Bottom(XmlElement xmlElement, Node parent) : base(xmlElement, parent, "w:bottom") { }
+    }
+    public class Right : BorderNode
+    {
+        public Right() : base("w:right") { }
+        public Right(Node parent) : base(parent, "w:right") { }
+
+        public Right(XmlElement xmlElement, Node parent) : base(xmlElement, parent, "w:right") { }
+    }
+    public class InsideH : BorderNode
+    {
+        public InsideH() : base("w:insideH") { }
+        public InsideH(Node parent) : base(parent, "w:insideH") { }
+
+        public InsideH(XmlElement xmlElement, Node parent) : base(xmlElement, parent, "w:insideH") { }
+    }
+    public class InsideV : BorderNode
+    {
+        public InsideV() : base("w:insideV") { }
+        public InsideV(Node parent) : base(parent, "w:insideV") { }
+
+        public InsideV(XmlElement xmlElement, Node parent) : base(xmlElement, parent, "w:insideV") { }
     }
 
     /// <summary>
@@ -957,7 +1169,6 @@ namespace TDV.Docx
             if (width != TcProp.TcW.Width)
             {
                 ParentTable.CreateChangeNodes(author);
-                TcProp.CreateChangeNode("w:tcPrChange", TcProp.XmlEl, author);
                 TcProp.TcW.Width = width;
             }
         }
@@ -966,8 +1177,8 @@ namespace TDV.Docx
         {
             if (vAlign != TcProp.vAlign.Align )
             {
+
                 ParentTable.CreateChangeNodes(author);
-                TcProp.CreateChangeNode("w:tcPrChange", TcProp.XmlEl, author);
                 TcProp.vAlign.Align = vAlign;
             }
         }
@@ -984,8 +1195,9 @@ namespace TDV.Docx
         {
             if (left != null)
             {
-                TcProp.TcBorders.CompareBorder(BORDER.LEFT, left, author);
-                if(applyToNearCells)
+                TcProp.TcBorders.CompareBorders(top, bottom, left, right, author);
+                //TcProp.TcBorders.CompareBorder(BORDER_TYPE.LEFT, left, author);
+                if (applyToNearCells)
                 { 
                     Tc leftCell = GetLeftCell();
                     if (leftCell != null)
@@ -993,8 +1205,8 @@ namespace TDV.Docx
                 }
             }
             if(right!=null)
-            { 
-                TcProp.TcBorders.CompareBorder(BORDER.RIGHT, right, author); 
+            {
+                TcProp.TcBorders.CompareBorders(top, bottom, left, right, author);
                 if (applyToNearCells)
                 {
                     Tc rightCell = GetRightCell();
@@ -1003,8 +1215,8 @@ namespace TDV.Docx
                 }
             }
             if(top!=null)
-            { 
-                TcProp.TcBorders.CompareBorder(BORDER.TOP, top, author);
+            {
+                TcProp.TcBorders.CompareBorders(top, bottom, left, right, author);
                 if (applyToNearCells)
                 {
                     Tc topCell = GetTopCell();
@@ -1013,8 +1225,8 @@ namespace TDV.Docx
                 }
             }
             if(bottom!=null)
-            { 
-                TcProp.TcBorders.CompareBorder(BORDER.BOTTOM, bottom, author);
+            {
+                TcProp.TcBorders.CompareBorders(top, bottom, left, right, author);
                 if (applyToNearCells)
                 {
                     Tc bottomCell = GetBottomCell();
@@ -1111,11 +1323,11 @@ namespace TDV.Docx
                 return FindChildOrCreate<TcW>();
             }
         }
-
+        /*
         public void CreateChangeNode(string author)
         { 
             CreateChangeNode("w:tcPrChange",  XmlEl, author);
-        }
+        }*/
 
         public TcBorders TcBorders
         {
@@ -1273,7 +1485,34 @@ namespace TDV.Docx
         public TcBorders(Node parent) : base(parent, "w:tcBorders") { }
         public TcBorders(XmlElement xmlElement, Node parent) : base(xmlElement, parent, "w:tcBorders") { }
 
-        public void CompareBorder(BORDER type, Border b, string author = "TDV")
+        private Table _parentTable;
+        public Table ParentTable
+        {
+            get
+            {
+                if (_parentTable == null)
+                    _parentTable = GetParentRecurcieve<Table>();
+                return _parentTable;
+            }
+        }
+
+        public void CompareBorders(Border Top, Border Bottom, Border Left, Border Right, string author = "TDV")
+        {
+            if ((Top == null && Top != this.Top) || (Bottom != null && Bottom != this.Bottom) || (Left !=null && Left != this.Left) || (Right !=null && Right != this.Right ))
+            {
+                ParentTable.CreateChangeNodes(author);
+            }
+            if (Top!=null && Top != this.Top)
+                this.Top = Top;
+            if (Bottom!=null && Bottom != this.Bottom)
+                this.Bottom = Bottom;
+            if (Left !=null && Left != this.Left)
+                this.Left = Left;
+            if (Right!=null&& Right != this.Right)
+                this.Right = Right;
+        }
+
+        /*public void CompareBorder(BORDER_TYPE type, Border b, string author = "TDV")
         {
             Border currBorder = GetBorder(type);
 
@@ -1283,127 +1522,162 @@ namespace TDV.Docx
                 table.CreateChangeNodes(author);                
                 SetBorder(type, b);
             }
-        }
-
+        }*/
         public Border Left
         {
-            get { return GetBorder(BORDER.BOTTOM); }
-            set { SetBorder(BORDER.LEFT, value); }
+            get
+            {
+                return FindChild<Left>()?.Border;// ?? ParentTable?.TblPr?.Style?.FindChild<TableProp>()?.FindChild<TblBorders>()?.FindChild<Left>()?.Border;
+            }
+            set
+            {
+                FindChildOrCreate<Left>().Border = value;
+            }
         }
         public Border Right
         {
-            get { return GetBorder(BORDER.BOTTOM); }
-            set { SetBorder(BORDER.RIGHT, value); }
+            get
+            {
+                return FindChild<Right>()?.Border;// ?? ParentTable?.TblPr?.Style?.FindChild<TableProp>()?.FindChild<TblBorders>()?.FindChild<Right>()?.Border;
+            }
+            set { FindChildOrCreate<Right>().Border = value; }
         }
         public Border Top
         {
-            get { return GetBorder(BORDER.BOTTOM); }
-            set { SetBorder(BORDER.TOP, value); }
+            get
+            {
+                return FindChild<Top>()?.Border;// ?? ParentTable?.TblPr?.Style?.FindChild<TableProp>()?.FindChild<TblBorders>()?.FindChild<Top>()?.Border;
+            }
+            set { FindChildOrCreate<Top>().Border = value; }
         }
         public Border Bottom
         {
-            get { return GetBorder(BORDER.BOTTOM); }
-            set { SetBorder(BORDER.BOTTOM, value); }
+            get
+            {
+                return FindChild<Bottom>()?.Border;// ?? ParentTable?.TblPr?.Style?.FindChild<TableProp>().FindChild<TblBorders>()?.FindChild<Bottom>()?.Border;
+            }
+            set { FindChildOrCreate<Bottom>().Border = value; }
         }
 
+        //public Border Left
+        //{
+        //    get { return GetBorder(BORDER_TYPE.BOTTOM); }
+        //    set { SetBorder(BORDER_TYPE.LEFT, value); }
+        //}
+        //public Border Right
+        //{
+        //    get { return GetBorder(BORDER_TYPE.BOTTOM); }
+        //    set { SetBorder(BORDER_TYPE.RIGHT, value); }
+        //}
+        //public Border Top
+        //{
+        //    get { return GetBorder(BORDER_TYPE.BOTTOM); }
+        //    set { SetBorder(BORDER_TYPE.TOP, value); }
+        //}
+        //public Border Bottom
+        //{
+        //    get { return GetBorder(BORDER_TYPE.BOTTOM); }
+        //    set { SetBorder(BORDER_TYPE.BOTTOM, value); }
+        //}
 
-        private Border GetBorder(BORDER type)
-        {
 
-            string localName = "";
-            switch (type)
-            {
-                case BORDER.LEFT:
-                    localName = "left";
-                    break;
-                case BORDER.RIGHT:
-                    localName = "right";
-                    break;
-                case BORDER.TOP:
-                    localName = "top";
-                    break;
-                case BORDER.BOTTOM:
-                    localName = "bottom";
-                    break;
-                default:
-                    break;
-            }
-            Style style = (GetParentRecurcieve<Table>().TblPr).CurrStyle;
-            XmlElement n = (XmlElement)XmlEl.SelectSingleNode($"w:{localName}", Nsmgr);
-            Border b = new Border();
-            if (n == null && style != null)
-            {
-                TableProp styleTableProp = style.GetStyleProp<TableProp>();
-                if (styleTableProp != null)
-                    n = (XmlElement)styleTableProp.XmlEl.SelectSingleNode($"w:tblBorders/w:{localName}", Nsmgr);
-            }
-            if (n != null)
-            {
-                if (n.HasAttribute("w:color"))
-                    b.color = n.GetAttribute("w:color");
-                if (n.HasAttribute("color"))
-                    b.color = n.GetAttribute("color");
-                if (n.HasAttribute("sz"))
-                    b.size = Int32.Parse(n.GetAttribute("sz"));
-                if (n.HasAttribute("w:sz"))
-                    b.size = Int32.Parse(n.GetAttribute("w:sz"));
-                if (n.HasAttribute("w:space"))
-                    b.space = Int32.Parse(n.GetAttribute("w:space"));
-                if (n.HasAttribute("space"))
-                    b.space = Int32.Parse(n.GetAttribute("space"));
-                else b.space = -1;
-                b.type = EnumExtentions.ToEnum<LINE_TYPE>(n.GetAttribute("w:val"));
+        //private Border GetBorder(BORDER_TYPE type)
+        //{
 
-            }
-            return b;
-        }
+        //    string localName = "";
+        //    switch (type)
+        //    {
+        //        case BORDER_TYPE.LEFT:
+        //            localName = "left";
+        //            break;
+        //        case BORDER_TYPE.RIGHT:
+        //            localName = "right";
+        //            break;
+        //        case BORDER_TYPE.TOP:
+        //            localName = "top";
+        //            break;
+        //        case BORDER_TYPE.BOTTOM:
+        //            localName = "bottom";
+        //            break;
+        //        default:
+        //            break;
+        //    }
+        //    Style style = (GetParentRecurcieve<Table>().TblPr).Style;
+        //    XmlElement n = (XmlElement)XmlEl.SelectSingleNode($"w:{localName}", Nsmgr);
+        //    Border b = new Border();
+        //    if (n == null && style != null)
+        //    {
+        //        TableProp styleTableProp = style.GetStyleProp<TableProp>();
+        //        if (styleTableProp != null)
+        //            n = (XmlElement)styleTableProp.XmlEl.SelectSingleNode($"w:tblBorders/w:{localName}", Nsmgr);
+        //    }
+        //    if (n != null)
+        //    {
+        //        if (n.HasAttribute("w:color"))
+        //            b.color = n.GetAttribute("w:color");
+        //        if (n.HasAttribute("color"))
+        //            b.color = n.GetAttribute("color");
+        //        if (n.HasAttribute("sz"))
+        //            b.size = Int32.Parse(n.GetAttribute("sz"));
+        //        if (n.HasAttribute("w:sz"))
+        //            b.size = Int32.Parse(n.GetAttribute("w:sz"));
+        //        if (n.HasAttribute("w:space"))
+        //            b.space = Int32.Parse(n.GetAttribute("w:space"));
+        //        if (n.HasAttribute("space"))
+        //            b.space = Int32.Parse(n.GetAttribute("space"));
+        //        else b.space = -1;
+        //        b.type = EnumExtentions.ToEnum<LINE_TYPE>(n.GetAttribute("w:val"));
 
-        private void SetBorder(BORDER type, Border b)
-        {
-            string prefix = "w";
-            string localName = "";
-            switch (type)
-            {
-                case BORDER.LEFT:
-                    localName = "left";
-                    break;
-                case BORDER.RIGHT:
-                    localName = "right";
-                    break;
-                case BORDER.TOP:
-                    localName = "top";
-                    break;
-                case BORDER.BOTTOM:
-                    localName = "bottom";
-                    break;
-                case BORDER.INSIDE_H:
-                    localName = "insideH";
-                    break;
-                case BORDER.INSIDE_V:
-                    localName = "insideV";
-                    break;
-                default:
-                    break;
-            }
-            XmlElement n = (XmlElement)XmlEl.SelectSingleNode($"{prefix}:{localName}", Nsmgr);
+        //    }
+        //    return b;
+        //}
 
-            if (n == null)
-            {
-                n = XmlDoc.CreateElement($"{prefix}:{localName}", XmlDoc.DocumentElement.NamespaceURI);
-                XmlEl.AppendChild(n);
-            }
+        //private void SetBorder(BORDER_TYPE type, Border b)
+        //{
+        //    string prefix = "w";
+        //    string localName = "";
+        //    switch (type)
+        //    {
+        //        case BORDER_TYPE.LEFT:
+        //            localName = "left";
+        //            break;
+        //        case BORDER_TYPE.RIGHT:
+        //            localName = "right";
+        //            break;
+        //        case BORDER_TYPE.TOP:
+        //            localName = "top";
+        //            break;
+        //        case BORDER_TYPE.BOTTOM:
+        //            localName = "bottom";
+        //            break;
+        //        case BORDER_TYPE.INSIDE_H:
+        //            localName = "insideH";
+        //            break;
+        //        case BORDER_TYPE.INSIDE_V:
+        //            localName = "insideV";
+        //            break;
+        //        default:
+        //            break;
+        //    }
+        //    XmlElement n = (XmlElement)XmlEl.SelectSingleNode($"{prefix}:{localName}", Nsmgr);
 
-            if (b.type == LINE_TYPE.NONE)
-            {
-                n.SetAttribute("val", XmlEl.NamespaceURI, "nil");
-            }
-            else //if (b.type != LINE_TYPE.UNKNOWN)
-                n.SetAttribute("val", XmlEl.NamespaceURI, b.type.ToStringValue());
+        //    if (n == null)
+        //    {
+        //        n = XmlDoc.CreateElement($"{prefix}:{localName}", XmlDoc.DocumentElement.NamespaceURI);
+        //        XmlEl.AppendChild(n);
+        //    }
 
-            n.SetAttribute("sz", XmlEl.NamespaceURI, b.size.ToString());
-            n.SetAttribute("space", XmlEl.NamespaceURI, b.space.ToString());
-            n.SetAttribute("color", XmlEl.NamespaceURI, b.color);
-        }
+        //    if (b.type == LINE_TYPE.NONE)
+        //    {
+        //        n.SetAttribute("val", XmlEl.NamespaceURI, "nil");
+        //    }
+        //    else //if (b.type != LINE_TYPE.UNKNOWN)
+        //        n.SetAttribute("val", XmlEl.NamespaceURI, b.type.ToStringValue());
+
+        //    n.SetAttribute("sz", XmlEl.NamespaceURI, b.size.ToString());
+        //    n.SetAttribute("space", XmlEl.NamespaceURI, b.space.ToString());
+        //    n.SetAttribute("color", XmlEl.NamespaceURI, b.color);
+        //}
     }
 
 }

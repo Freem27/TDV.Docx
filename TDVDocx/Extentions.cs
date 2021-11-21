@@ -54,4 +54,46 @@ namespace TDV.Docx
             }
         }
     }
+
+    static class StringExtentions { 
+        public static List<int> AllIndexesOf(this string str, string value)
+        {
+            if (String.IsNullOrEmpty(value))
+                throw new ArgumentException("Искомая строка не может быть пустой", "value");
+            List<int> indexes = new List<int>();
+            for (int index = 0; ; index += value.Length)
+            {
+                index = str.IndexOf(value, index);
+                if (index == -1)
+                return indexes;
+                indexes.Add(index);
+            }
+        }
+    }
+
+    static class IntExtentions
+    {
+        public static bool Between(this int source, int start , int end)
+        {
+            if (start <= source && end >= source)
+                return true;
+            else
+                return false;
+        }
+    }
+    public class Pair<T, U>
+    {
+        public Pair()
+        {
+        }
+
+        public Pair(T first, U second)
+        {
+            this.First = first;
+            this.Second = second;
+        }
+
+        public T First { get; set; }
+        public U Second { get; set; }
+    };
 }

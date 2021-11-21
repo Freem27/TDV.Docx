@@ -33,6 +33,11 @@ namespace TDV.Docx
 </w:comments>");
                 FillNamespaces();
                 XmlEl = (XmlElement)XmlDoc.SelectSingleNode(@"/w:comments", Nsmgr);
+                Override ov = docx.ContentTypes.GetOverride(file.GetFullPath(), true);
+                ov.ContentType = Override.ContentTypes.COMMENTS;
+
+                if (!docx.WordRels.Relationships.Where(x => x.Target == "comments.xml").Any())
+                    docx.WordRels.NewRelationship("comments.xml", RELATIONSIP_TYPE.COMMENT);
             }
             catch (Exception e)
             {
@@ -221,7 +226,7 @@ namespace TDV.Docx
         public override void InitXmlElement()
         {
             base.InitXmlElement();
-            Id = GetDocxDocument().Document.GetLastId() + 1;
+            Id = GetDocxDocument().Document.GetNextId();
         }
     }
 

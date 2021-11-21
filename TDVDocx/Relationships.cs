@@ -8,10 +8,7 @@ using System.Xml;
 
 namespace TDV.Docx
 {
-    public enum RELATIONSIP_TYPE
-    {
-        FOOTER, STYLES, ENDNOTES, NUMBERING, CUSTOM_XML, FOOTNOTES, WEB_SETTINGS, THEME, SETTINGS, FONT_TABLE, HEADER, HYPERLINK
-    }
+    
 
     public enum RELATIONSHIP_TARGET_MODE
     {
@@ -107,7 +104,7 @@ namespace TDV.Docx
             //удалить имя файла
             result = DocxDocument.sourceFolder.FindFile(fileName, filePath);
             if (result == null)
-                throw new FileNotFoundException($"Ну удалось найти файл с id={id}");
+                throw new FileNotFoundException($"Не удалось найти файл с id={id}");
             return result;
         }
 
@@ -133,81 +130,11 @@ namespace TDV.Docx
         {
             get
             {
-                switch (XmlEl.GetAttribute("Type"))
-                {
-                    case "http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer":
-                        return RELATIONSIP_TYPE.FOOTER;
-                    case "http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles":
-                        return RELATIONSIP_TYPE.STYLES;
-                    case "http://schemas.openxmlformats.org/officeDocument/2006/relationships/endnotes":
-                        return RELATIONSIP_TYPE.ENDNOTES;
-                    case "http://schemas.openxmlformats.org/officeDocument/2006/relationships/numbering":
-                        return RELATIONSIP_TYPE.NUMBERING;
-                    case "http://schemas.openxmlformats.org/officeDocument/2006/relationships/customXml":
-                        return RELATIONSIP_TYPE.CUSTOM_XML;
-                    case "http://schemas.openxmlformats.org/officeDocument/2006/relationships/footnotes":
-                        return RELATIONSIP_TYPE.FOOTNOTES;
-                    case "http://schemas.openxmlformats.org/officeDocument/2006/relationships/webSettings":
-                        return RELATIONSIP_TYPE.WEB_SETTINGS;
-                    case "http://schemas.openxmlformats.org/officeDocument/2006/relationships/theme":
-                        return RELATIONSIP_TYPE.THEME;
-                    case "http://schemas.openxmlformats.org/officeDocument/2006/relationships/settings":
-                        return RELATIONSIP_TYPE.SETTINGS;
-                    case "http://schemas.openxmlformats.org/officeDocument/2006/relationships/fontTable":
-                        return RELATIONSIP_TYPE.FONT_TABLE;
-                    case "http://schemas.openxmlformats.org/officeDocument/2006/relationships/header":
-                        return RELATIONSIP_TYPE.HEADER;
-                    case "http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink":
-                        return RELATIONSIP_TYPE.HYPERLINK;
-                }
-                throw new Exception($"Неизвестный тип связи {XmlEl.GetAttribute("Type")}");
+                return EnumExtentions.ToEnum<RELATIONSIP_TYPE>(GetAttribute("Type"));
             }
             set
             {
-                string type = "";
-                switch (value)
-                {
-                    case RELATIONSIP_TYPE.FOOTER:
-                        type = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer";
-                        break;
-                    case RELATIONSIP_TYPE.STYLES:
-                        type = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles";
-                        break;
-                    case RELATIONSIP_TYPE.ENDNOTES:
-                        type = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/endnotes";
-                        break;
-                    case RELATIONSIP_TYPE.NUMBERING:
-                        type = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/numbering";
-                        break;
-                    case RELATIONSIP_TYPE.CUSTOM_XML:
-                        type = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/customXml";
-                        break;
-                    case RELATIONSIP_TYPE.FOOTNOTES:
-                        type = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/footnotes";
-                        break;
-                    case RELATIONSIP_TYPE.WEB_SETTINGS:
-                        type = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/webSettings";
-                        break;
-                    case RELATIONSIP_TYPE.THEME:
-                        type = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/theme";
-                        break;
-                    case RELATIONSIP_TYPE.SETTINGS:
-                        type = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/settings";
-                        break;
-                    case RELATIONSIP_TYPE.FONT_TABLE:
-                        type = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/fontTable";
-                        break;
-                    case RELATIONSIP_TYPE.HEADER:
-                        type = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/header";
-                        break;
-                    case RELATIONSIP_TYPE.HYPERLINK:
-                        type = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink";
-                        TargetMode = RELATIONSHIP_TARGET_MODE.EXTERNAL;
-                        break;
-                    default:
-                        throw new Exception($"Неизвестный тип связи {value.ToString()}");
-                }                
-                XmlEl.SetAttribute("Type", type);
+                XmlEl.SetAttribute("Type", value.ToStringValue());
             }
         }
 

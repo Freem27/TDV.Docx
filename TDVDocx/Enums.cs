@@ -9,9 +9,114 @@ namespace TDV.Docx
 {
     public enum LINE_TYPE
     {
-        NONE,
+        /// <summary>
+        /// одиночная линия
+        /// </summary>
         SINGLE,
-        DOTTED
+        /// <summary>
+        /// линия с чередованием тонких и толстых штрихов
+        /// </summary>
+        DASH_DOT_STROKED,
+        /// <summary>
+        /// пунктирная линия
+        /// </summary>
+        DASHED,
+        /// <summary>
+        /// пунктирная линия с небольшими промежутками
+        /// </summary>
+        DASH_SMALL_GAP,
+        /// <summary>
+        /// линия с чередующимися точками и тире
+        /// </summary>
+        DOT_DASH,
+        /// <summary>
+        ///  линия с повторяющейся точкой
+        /// </summary>
+        DOT_DOT_DASH,
+        /// <summary>
+        /// пунктирная линия
+        /// </summary>
+        DOTTED,
+        /// <summary>
+        /// двойная линия
+        /// </summary>
+        DOUBLE,
+        /// <summary>
+        /// двойная волнистая линия
+        /// </summary>
+        DOUBLE_WAVE,
+        /// <summary>
+        /// набор линий
+        /// </summary>
+        INSET,
+        /// <summary>
+        /// без границ
+        /// </summary>
+        NIL,
+        /// <summary>
+        /// без границ
+        /// </summary>
+        NONE,
+        /// <summary>
+        /// начальный набор линий
+        /// </summary>
+        OUTSET,
+        /// <summary>
+        /// одна строка
+        /// </summary>
+        THICK,
+        /// <summary>
+        /// толстая линия, заключенная в тонкую линию с большим
+        /// </summary>
+        THICK_THIN_LARGE_GAP,
+        /// <summary>
+        /// толстая линия внутри тонкой линии со средним
+        /// </summary>
+        THICK_THIN_MEDIUM_GAP,
+        /// <summary>
+        /// толстая линия, содержащаяся внутри тонкой линии с небольшим промежуточным промежутком
+        /// </summary>
+        THICK_THIN_SMALL_GAP,
+        /// <summary>
+        /// тонкая линия, заключенная в толстую линию с большим
+        /// </summary>
+        THIN_THICK_LARGE_GAP,
+        /// <summary>
+        /// толстая линия внутри тонкой линии со средним
+        /// </summary>
+        THIN_THICK_MEDIUM_GAP,
+        /// <summary>
+        /// толстая линия, содержащаяся внутри тонкой линии с небольшим промежуточным промежутком
+        /// </summary>
+        THIN_THICK_SMALL_GAP,
+        /// <summary>
+        /// тонкий
+        /// </summary>
+        THIN_THICK_THIN_LARGE_GAP,
+        /// <summary>
+        /// тонкий
+        /// </summary>
+        THIN_THICK_THIN_MEDIUM_GAP,
+        /// <summary>
+        /// тонкий
+        /// </summary>
+        THIN_THICK_THIN_SMALL_GAP,
+        /// <summary>
+        /// три
+        /// </summary>
+        THREE_DEMBOSS,
+        /// <summary>
+        /// три
+        /// </summary>
+        THREE_DENGRAVE,
+        /// <summary>
+        /// тройная линия
+        /// </summary>
+        TRIPLE,
+        /// <summary>
+        /// волнистая линия 
+        /// </summary>
+        WAVE
 
         /*
         single - a single line
@@ -43,19 +148,105 @@ triple - a triple line
 wave - a wavy line
          */
     }
-
+    public enum RELATIONSIP_TYPE
+    {
+        FOOTER, STYLES, ENDNOTES, NUMBERING, CUSTOM_XML, FOOTNOTES, WEB_SETTINGS, THEME, SETTINGS, FONT_TABLE, HEADER, HYPERLINK,COMMENT
+    }
+    public enum ASCII_THEME
+    {
+        NONE,
+        /// <summary>
+        /// Указывает, что текущий шрифт является ссылкой на основной шрифт темы для диапазона ASCII.
+        /// <summary>
+        MAJOR_ASCII,
+        /// <summary>
+        /// Указывает, что текущий шрифт является ссылкой на основной шрифт темы для диапазона сложных сценариев.
+        /// <summary>
+        MAJOR_BIDI,
+        /// <summary>
+        /// Указывает, что текущий шрифт является ссылкой на основной шрифт темы для восточноазиатского диапазона.
+        /// <summary>
+        MAJOR_EAST_ASIA,
+        /// <summary>
+        /// Указывает, что текущий шрифт является ссылкой на основной шрифт темы для диапазона High ANSI.
+        /// <summary>
+        MAJOR_HANSI,
+        /// <summary>
+        /// Указывает, что текущий шрифт является ссылкой на дополнительный шрифт темы для диапазона ASCII.
+        /// <summary>
+        MINOR_ASCII,
+        /// <summary>
+        /// Указывает, что текущий шрифт является ссылкой на второстепенный шрифт темы для диапазона сложных сценариев.
+        /// <summary>
+        MINOR_BIDI,
+        /// <summary>
+        /// Указывает, что текущий шрифт является ссылкой на дополнительный шрифт темы для восточноазиатского диапазона.
+        /// <summary>
+        MINOR_EAST_ASIA,
+        /// <summary>
+        /// Указывает, что текущий шрифт является ссылкой на дополнительный шрифт темы для диапазона High ANSI.
+        /// <summary>
+        MINOR_HANSI
+    }
     public static class EnumExtentions
     {
-        public static string ToStringValue(this LINE_TYPE e)
-        {
+        public static string ToStringValue(this LINE_TYPE e) {
             switch (e)
             {
-                case LINE_TYPE.DOTTED:
-                    return "dotted";
                 case LINE_TYPE.SINGLE:
                     return "single";
+                case LINE_TYPE.DASH_DOT_STROKED:
+                    return "dashDotStroked";
+                case LINE_TYPE.DASHED:
+                    return "dashed";
+                case LINE_TYPE.DASH_SMALL_GAP:
+                    return "dashSmallGap";
+                case LINE_TYPE.DOT_DASH:
+                    return "dotDash";
+                case LINE_TYPE.DOT_DOT_DASH:
+                    return "dotDotDash";
+                case LINE_TYPE.DOTTED:
+                    return "dotted";
+                case LINE_TYPE.DOUBLE:
+                    return "double";
+                case LINE_TYPE.DOUBLE_WAVE:
+                    return "doubleWave";
+                case LINE_TYPE.INSET:
+                    return "inset";
+                case LINE_TYPE.NIL:
+                    return "nil";
                 case LINE_TYPE.NONE:
-                    return "";
+                    return "none";
+                case LINE_TYPE.OUTSET:
+                    return "outset";
+                case LINE_TYPE.THICK:
+                    return "thick";
+                case LINE_TYPE.THICK_THIN_LARGE_GAP:
+                    return "thickThinLargeGap";
+                case LINE_TYPE.THICK_THIN_MEDIUM_GAP:
+                    return "thickThinMediumGap";
+                case LINE_TYPE.THICK_THIN_SMALL_GAP:
+                    return "thickThinSmallGap";
+                case LINE_TYPE.THIN_THICK_LARGE_GAP:
+                    return "thinThickLargeGap";
+                case LINE_TYPE.THIN_THICK_MEDIUM_GAP:
+                    return "thinThickMediumGap";
+                case LINE_TYPE.THIN_THICK_SMALL_GAP:
+                    return "thinThickSmallGap";
+                case LINE_TYPE.THIN_THICK_THIN_LARGE_GAP:
+                    return "thinThickThinLargeGap";
+                case LINE_TYPE.THIN_THICK_THIN_MEDIUM_GAP:
+                    return "thinThickThinMediumGap";
+                case LINE_TYPE.THIN_THICK_THIN_SMALL_GAP:
+                    return "thinThickThinSmallGap";
+                case LINE_TYPE.THREE_DEMBOSS:
+                    return "threeDEmboss";
+                case LINE_TYPE.THREE_DENGRAVE:
+                    return "threeDEngrave";
+                case LINE_TYPE.TRIPLE:
+                    return "triple";
+                case LINE_TYPE.WAVE:
+                    return "wave";
             }
             throw new NotImplementedException();
         }
@@ -81,6 +272,7 @@ wave - a wavy line
             }
             throw new NotImplementedException();
         }
+        //https://c-rex.net/projects/samples/ooxml/e1/Part4/OOXML_P4_DOCX_ST_NumberFormat_topic_ID0EDNB3.html#topic_ID0EDNB3
         public static string ToStringValue(this NUM_FMT e)
         {
             switch (e)
@@ -198,30 +390,85 @@ wave - a wavy line
             }
             throw new NotImplementedException();
         }
-
-        public static string ToStringValue(this BORDER e)
+        public static string ToStringValue(this BORDER_TYPE e)
         {
             switch (e)
             {
-                case BORDER.LEFT:
+                case BORDER_TYPE.LEFT:
                     return "left";
-                case BORDER.RIGHT:
+                case BORDER_TYPE.RIGHT:
                     return "right";
-                case BORDER.TOP:
+                case BORDER_TYPE.TOP:
                     return "top";
-                case BORDER.BOTTOM:
+                case BORDER_TYPE.BOTTOM:
                     return "bottom";
-                case BORDER.BETWEEN:
+                case BORDER_TYPE.BETWEEN:
                     return "between";
-                case BORDER.BAR:
+                case BORDER_TYPE.BAR:
                     return "bar";
-                case BORDER.INSIDE_H:
+                case BORDER_TYPE.INSIDE_H:
                     return "insideH";
-                case BORDER.INSIDE_V:
+                case BORDER_TYPE.INSIDE_V:
                     return "insideV";
             }
             throw new NotImplementedException();
         }
+        public static string ToStringValue(this ASCII_THEME e) { switch (e) {
+                case ASCII_THEME.NONE:
+                    return "";
+                case ASCII_THEME.MAJOR_ASCII:
+                    return "majorAscii";
+                case ASCII_THEME.MAJOR_BIDI:
+                    return "majorBidi";
+                case ASCII_THEME.MAJOR_EAST_ASIA:
+                    return "majorEastAsia";
+                case ASCII_THEME.MAJOR_HANSI:
+                    return "majorHAnsi";
+                case ASCII_THEME.MINOR_ASCII:
+                    return "minorAscii";
+                case ASCII_THEME.MINOR_BIDI:
+                    return "minorBidi";
+                case ASCII_THEME.MINOR_EAST_ASIA:
+                    return "minorEastAsia";
+                case ASCII_THEME.MINOR_HANSI:
+                    return "minorHAnsi";
+            }
+            throw new NotImplementedException();
+        }
+        public static string ToStringValue(this RELATIONSIP_TYPE e)
+        {
+            switch (e)
+            {
+                case RELATIONSIP_TYPE.FOOTER:
+                    return "http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer";
+                case RELATIONSIP_TYPE.STYLES:
+                    return "http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles";
+                case RELATIONSIP_TYPE.ENDNOTES:
+                    return "http://schemas.openxmlformats.org/officeDocument/2006/relationships/endnotes";
+                case RELATIONSIP_TYPE.NUMBERING:
+                    return "http://schemas.openxmlformats.org/officeDocument/2006/relationships/numbering";
+                case RELATIONSIP_TYPE.CUSTOM_XML:
+                    return "http://schemas.openxmlformats.org/officeDocument/2006/relationships/customXml";
+                case RELATIONSIP_TYPE.FOOTNOTES:
+                    return "http://schemas.openxmlformats.org/officeDocument/2006/relationships/footnotes";
+                case RELATIONSIP_TYPE.WEB_SETTINGS:
+                    return "http://schemas.openxmlformats.org/officeDocument/2006/relationships/webSettings";
+                case RELATIONSIP_TYPE.THEME:
+                    return "http://schemas.openxmlformats.org/officeDocument/2006/relationships/theme";
+                case RELATIONSIP_TYPE.SETTINGS:
+                    return "http://schemas.openxmlformats.org/officeDocument/2006/relationships/settings";
+                case RELATIONSIP_TYPE.FONT_TABLE:
+                    return "http://schemas.openxmlformats.org/officeDocument/2006/relationships/fontTable";
+                case RELATIONSIP_TYPE.HEADER:
+                    return "http://schemas.openxmlformats.org/officeDocument/2006/relationships/header";
+                case RELATIONSIP_TYPE.HYPERLINK:
+                    return "http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink";
+                case RELATIONSIP_TYPE.COMMENT:
+                    return "http://schemas.openxmlformats.org/officeDocument/2006/relationships/comments";
+            }
+            throw new NotImplementedException();
+        }
+
         public static T ToEnum<T>(string value)
         {
             Type currType = typeof(T);
@@ -229,13 +476,33 @@ wave - a wavy line
             {
                 switch (value)
                 {
-                    case "single":
-                        return (T)(object)LINE_TYPE.SINGLE;
-                    case "dotted":
-                        return (T)(object)LINE_TYPE.DOTTED;
-                    case "nil":
-                    case "":
-                        return (T)(object)LINE_TYPE.NONE;
+                    case "single": return (T)(object)LINE_TYPE.SINGLE;
+                    case "dashDotStroked": return (T)(object)LINE_TYPE.DASH_DOT_STROKED;
+                    case "dashed": return (T)(object)LINE_TYPE.DASHED;
+                    case "dashSmallGap": return (T)(object)LINE_TYPE.DASH_SMALL_GAP;
+                    case "dotDash": return (T)(object)LINE_TYPE.DOT_DASH;
+                    case "dotDotDash": return (T)(object)LINE_TYPE.DOT_DOT_DASH;
+                    case "dotted": return (T)(object)LINE_TYPE.DOTTED;
+                    case "double": return (T)(object)LINE_TYPE.DOUBLE;
+                    case "doubleWave": return (T)(object)LINE_TYPE.DOUBLE_WAVE;
+                    case "inset": return (T)(object)LINE_TYPE.INSET;
+                    case "nil": return (T)(object)LINE_TYPE.NIL;
+                    case "none": return (T)(object)LINE_TYPE.NONE;
+                    case "outset": return (T)(object)LINE_TYPE.OUTSET;
+                    case "thick": return (T)(object)LINE_TYPE.THICK;
+                    case "thickThinLargeGap": return (T)(object)LINE_TYPE.THICK_THIN_LARGE_GAP;
+                    case "thickThinMediumGap": return (T)(object)LINE_TYPE.THICK_THIN_MEDIUM_GAP;
+                    case "thickThinSmallGap": return (T)(object)LINE_TYPE.THICK_THIN_SMALL_GAP;
+                    case "thinThickLargeGap": return (T)(object)LINE_TYPE.THIN_THICK_LARGE_GAP;
+                    case "thinThickMediumGap": return (T)(object)LINE_TYPE.THIN_THICK_MEDIUM_GAP;
+                    case "thinThickSmallGap": return (T)(object)LINE_TYPE.THIN_THICK_SMALL_GAP;
+                    case "thinThickThinLargeGap": return (T)(object)LINE_TYPE.THIN_THICK_THIN_LARGE_GAP;
+                    case "thinThickThinMediumGap": return (T)(object)LINE_TYPE.THIN_THICK_THIN_MEDIUM_GAP;
+                    case "thinThickThinSmallGap": return (T)(object)LINE_TYPE.THIN_THICK_THIN_SMALL_GAP;
+                    case "threeDEmboss": return (T)(object)LINE_TYPE.THREE_DEMBOSS;
+                    case "threeDEngrave": return (T)(object)LINE_TYPE.THREE_DENGRAVE;
+                    case "triple": return (T)(object)LINE_TYPE.TRIPLE;
+                    case "wave": return (T)(object)LINE_TYPE.WAVE;
                 }
             }
             else if (currType == typeof(XML_SPACE))
@@ -340,7 +607,7 @@ wave - a wavy line
                 switch (value)
                 {
                     case "first":
-                        return (T)(object)REFERENCE_TYPE.EVEN;
+                        return (T)(object)REFERENCE_TYPE.FIRST;
                     case "even":
                         return (T)(object)REFERENCE_TYPE.EVEN;
                     case "default":
@@ -373,29 +640,139 @@ wave - a wavy line
                         return (T)(object)MULTI_LEVEL_TYPE.HYBRID_MULTY_LEVEL;
                 }
             }
-            else if (currType == typeof(BORDER))
+            else if (currType == typeof(BORDER_TYPE))
             {
                 switch (value)
                 {
                     case "left":
-                        return (T)(object)BORDER.LEFT;
+                        return (T)(object)BORDER_TYPE.LEFT;
                     case "right":
-                        return (T)(object)BORDER.RIGHT;
+                        return (T)(object)BORDER_TYPE.RIGHT;
                     case "top":
-                        return (T)(object)BORDER.TOP;
+                        return (T)(object)BORDER_TYPE.TOP;
                     case "bottom":
-                        return (T)(object)BORDER.BOTTOM;
+                        return (T)(object)BORDER_TYPE.BOTTOM;
                     case "between":
-                        return (T)(object)BORDER.BETWEEN;
+                        return (T)(object)BORDER_TYPE.BETWEEN;
                     case "bar":
-                        return (T)(object)BORDER.BAR;
+                        return (T)(object)BORDER_TYPE.BAR;
                     case "insideH":
-                        return (T)(object)BORDER.INSIDE_H;
+                        return (T)(object)BORDER_TYPE.INSIDE_H;
                     case "insideV":
-                        return (T)(object)BORDER.INSIDE_V;
+                        return (T)(object)BORDER_TYPE.INSIDE_V;
                 }
+            }
+            else if (currType == typeof(ASCII_THEME))
+            {
+                switch (value)
+                {
+                    case null:
+                    case "":
+                        return (T)(object)ASCII_THEME.NONE;
+                    case "majorAscii": return (T)(object)ASCII_THEME.MAJOR_ASCII;
+                    case "majorBidi": return (T)(object)ASCII_THEME.MAJOR_BIDI;
+                    case "majorEastAsia": return (T)(object)ASCII_THEME.MAJOR_EAST_ASIA;
+                    case "majorHAnsi": return (T)(object)ASCII_THEME.MAJOR_HANSI;
+                    case "minorAscii": return (T)(object)ASCII_THEME.MINOR_ASCII;
+                    case "minorBidi": return (T)(object)ASCII_THEME.MINOR_BIDI;
+                    case "minorEastAsia": return (T)(object)ASCII_THEME.MINOR_EAST_ASIA;
+                    case "minorHAnsi": return (T)(object)ASCII_THEME.MINOR_HANSI;
+                }
+            }
+            else if (currType == typeof(RELATIONSIP_TYPE))
+            {
+                switch (value)
+                {
+                    case "http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer":
+                        return (T)(object)RELATIONSIP_TYPE.FOOTER;
+                    case "http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles":
+                        return (T)(object)RELATIONSIP_TYPE.STYLES;
+                    case "http://schemas.openxmlformats.org/officeDocument/2006/relationships/endnotes":
+                        return (T)(object)RELATIONSIP_TYPE.ENDNOTES;
+                    case "http://schemas.openxmlformats.org/officeDocument/2006/relationships/numbering":
+                        return (T)(object)RELATIONSIP_TYPE.NUMBERING;
+                    case "http://schemas.openxmlformats.org/officeDocument/2006/relationships/customXml":
+                        return (T)(object)RELATIONSIP_TYPE.CUSTOM_XML;
+                    case "http://schemas.openxmlformats.org/officeDocument/2006/relationships/footnotes":
+                        return (T)(object)RELATIONSIP_TYPE.FOOTNOTES;
+                    case "http://schemas.openxmlformats.org/officeDocument/2006/relationships/webSettings":
+                        return (T)(object)RELATIONSIP_TYPE.WEB_SETTINGS;
+                    case "http://schemas.openxmlformats.org/officeDocument/2006/relationships/theme":
+                        return (T)(object)RELATIONSIP_TYPE.THEME;
+                    case "http://schemas.openxmlformats.org/officeDocument/2006/relationships/settings":
+                        return (T)(object)RELATIONSIP_TYPE.SETTINGS;
+                    case "http://schemas.openxmlformats.org/officeDocument/2006/relationships/fontTable":
+                        return (T)(object)RELATIONSIP_TYPE.FONT_TABLE;
+                    case "http://schemas.openxmlformats.org/officeDocument/2006/relationships/header":
+                        return (T)(object)RELATIONSIP_TYPE.HEADER;
+                    case "http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink":
+                        return (T)(object)RELATIONSIP_TYPE.HYPERLINK;
+                    case "http://schemas.openxmlformats.org/officeDocument/2006/relationships/comments":
+                        return (T)(object)RELATIONSIP_TYPE.COMMENT;
+                }
+            }
+
+            throw new NotImplementedException();
+        }
+    }
+
+
+    public enum QUOTES
+    {
+        /// <summary>
+        /// "двойные"
+        /// </summary>
+        DEFAULT,
+        /// <summary>
+        /// «ёлочки»
+        /// </summary>
+        FRANCE,
+        /// <summary>
+        /// ‟лапки”
+        /// </summary>
+        FRANCE_PAWS,
+        /// <summary>
+        /// ‹одиночные›
+        /// </summary>
+        FRANCE_SINGLE,
+        /// <summary>
+        /// „лапки“
+        /// </summary>
+        GERMAN,
+        /// <summary>
+        /// “английские двойные”
+        /// </summary>
+        ENGLISH_DOUBLE,
+        /// <summary>
+        /// ‘английские одиночные’
+        /// </summary>
+        ENGLISH_SINGLE
+    }
+
+    public static class QuoteExtentions
+    { 
+        public static Pair<char, char> ToQuotes (this QUOTES e)
+        {
+            switch (e)
+            {
+                case QUOTES.DEFAULT:
+                    return new Pair<char, char>('"', '"');
+                case QUOTES.FRANCE:
+                    return new Pair<char, char>('«', '»');
+                case QUOTES.FRANCE_PAWS:
+                    return new Pair<char, char>('‟', '”');
+                case QUOTES.FRANCE_SINGLE:
+                    return new Pair<char, char>('‹', '›');
+                case QUOTES.GERMAN:
+                    return new Pair<char, char>('„', '“');
+                case QUOTES.ENGLISH_DOUBLE:
+                    return new Pair<char, char>('“', '”');
+                case QUOTES.ENGLISH_SINGLE:
+                    return new Pair<char, char>('‘', '’');
+
             }
             throw new NotImplementedException();
         }
     }
+    
 }

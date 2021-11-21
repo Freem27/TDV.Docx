@@ -116,7 +116,7 @@ namespace TDV.Docx
                 //убрать pageNumbers, если они в обычном параграфе, а не в блоке SDT
                 foreach(Paragraph p in FindChilds<Paragraph>())
                 {
-                    if (p.Text.Contains("PAGE") && p.Text.Contains("MERGEFORMAT"))
+                    if (p.Text.Contains("PAGE") && p.Text.Contains("MERGEFORMAT")) 
                         p.Delete();
                 }
                 switch(value)
@@ -135,7 +135,9 @@ namespace TDV.Docx
                         R r1 = p.NewNodeLast<R>();
                         r1.NewNodeLast<FldChar>().FldCharType = FLD_CHAR_TYPE.BEGIN;
                         R r2 = p.NewNodeLast<R>();
-                        r2.NewNodeLast<InstrText>().Text = "PAGE \\* MERGEFORMAT";
+                        InstrText it =r2.NewNodeLast<InstrText>();
+                            it.Text = "PAGE \\* MERGEFORMAT";
+                        it.XmlSpace = XML_SPACE.PRESERVE;
                         R r3 = p.NewNodeLast<R>();
                         r3.NewNodeLast<FldChar>().FldCharType = FLD_CHAR_TYPE.SEPARATE;
                         R r4 = p.NewNodeLast<R>();
@@ -300,7 +302,7 @@ namespace TDV.Docx
         {
             base.InitXmlElement();
             if (string.IsNullOrEmpty(XmlEl.GetAttribute("id", XmlEl.NamespaceURI)))
-                XmlEl.SetAttribute("id", XmlEl.NamespaceURI, (GetDocxDocument().Document.GetLastId() + 1).ToString());
+                XmlEl.SetAttribute("id", XmlEl.NamespaceURI, (GetDocxDocument().Document.GetNextId()).ToString());
             Author = "TDV";
             XmlEl.SetAttribute("date", XmlEl.NamespaceURI, DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ssZ"));
         }
@@ -518,6 +520,25 @@ namespace TDV.Docx
     {
         public InstrText() : base("w:instrText") { }
         public InstrText(XmlElement xmlElement, Node parent) : base(xmlElement, parent, "w:instrText") { }
+        public XML_SPACE XmlSpace
+        {
+            get
+            {
+                if (!HasAttribute("xml:space"))
+                    return XML_SPACE.NONE;
+                return EnumExtentions.ToEnum<XML_SPACE>(GetAttribute("xml:space"));
+            }
+            set
+            {
+                if (value == XML_SPACE.NONE)
+                {
+                    RemoveAttribute("xml:space");
+                    return;
+                }
+
+                SetAttribute("xml:space", value.ToStringValue());
+            }
+        }
     }
     public class FooterReference : Node
     {

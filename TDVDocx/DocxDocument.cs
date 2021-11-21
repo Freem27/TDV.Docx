@@ -12,17 +12,49 @@ namespace TDV.Docx
         public Document Document;
         public WordRels WordRels;
         public Styles Styles;
-        public FootNotes FootNotes;
-        public Numbering Numbering;
         public ContentTypes ContentTypes;
         public Settings Settings;
         private Comments _comments;
+        public List<Theme> ThemesList;
+
+        public Theme ThemeDefault
+        {
+            get
+            {
+                foreach (Theme t in ThemesList)
+                {
+                    if (t.IsObjectDefaults)
+                        return t;
+                }
+                return null;
+            }
+        }
         public Comments Comments {
             get
             {
                 if (_comments == null)
                     _comments = new Comments(this);
                 return _comments;
+            }
+        }
+        private FootNotes _footNotes;
+        private Numbering _numbering;
+        public FootNotes FootNotes
+        {
+            get
+            {
+                if (_footNotes == null)
+                    _footNotes = new FootNotes(this);
+                return _footNotes;
+            }
+        }
+        public Numbering Numbering
+        {
+            get
+            {
+                if (_numbering == null)
+                    _numbering = new Numbering(this);
+                return _numbering;
             }
         }
         public List<BaseNode> FilesForApply;
@@ -47,6 +79,10 @@ namespace TDV.Docx
             }
             return footers[id];
         }
+
+
+
+
         public DocxDocument(Stream stream)
         {
             headers = new Dictionary<string, Header>();
@@ -69,10 +105,15 @@ namespace TDV.Docx
             Document = new Document(this);
             WordRels = new WordRels(this);
             Styles = new Styles(this);
-            FootNotes = new FootNotes(this);
-            Numbering = new Numbering(this);
             ContentTypes = new ContentTypes(this);
             Settings = new Settings(this);
+            ThemesList = new List<Theme>();
+            foreach (ArchFile file in sourceFolder.GetFolder("word").GetFolder("theme").GetFiles())
+            {
+                ThemesList.Add(new Theme(this,file));
+            }
+
+            
         }
 
         public MemoryStream ToStream()
