@@ -840,6 +840,9 @@ namespace TDV.Docx
                         case "w:br":
                             result.Add(new Br(item, this));
                             break;
+                        case "w:color":
+                            result.Add(new WColor(item, this));
+                            break;
                         default:
                             result.Add(new Node(item, this, item.Name));
                             break;

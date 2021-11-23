@@ -634,47 +634,71 @@ namespace TDV.Docx
         {
             get
             {
-                var n = XmlEl.SelectSingleNode("w:color", Nsmgr);
-                if (n != null && n.Attributes["w:val"] != null)
-                    return n.Attributes["w:val"].Value;
-
-                if (Style != null)
-                {
-                    RProp styleRProp = Style.GetStyleProp<RProp>();
-                    if (styleRProp != null)
-                        return styleRProp.Color;
-                }
-
-                return null;
+                return FindChild<WColor>()?.Value ?? Style?.GetStyleProp<RProp>()?.Color ?? null;
             }
             set
             {
-                XmlElement n = (XmlElement) XmlEl.SelectSingleNode("w:color", Nsmgr);
-                if (String.IsNullOrEmpty(value) && n != null)
-                    XmlEl.RemoveChild(n);
+                if(string.IsNullOrEmpty(value))
+                    FindChild<WColor>()?.Delete();
+                else
+                    FindChildOrCreate<WColor>().Value = value;
+            }
+        }
+    }
 
-                if (n == null)
-                    n = XmlDoc.CreateElement("w", "color", XmlEl.NamespaceURI);
+    public class WColor : Node
+    {
+        public WColor() : base("w:color") { }
 
-                n.SetAttribute("val", XmlEl.NamespaceURI, string.IsNullOrEmpty(value) ? "auto" : value);
-                XmlEl.AppendChild(n);
+        public WColor(Node parent) : base(parent, "w:color") { }
+
+        public WColor(XmlElement xmlElement, Node parent) : base(xmlElement, parent, "w:color") { }
+
+        public string Value
+        {
+            get
+            {
+                if (HasAttribute("w:val"))
+                    return GetAttribute("w:val");
+                if (!string.IsNullOrEmpty(ThemeColor))
+                {
+                    DocxDocument docx = GetDocxDocument();
+                    return docx.ThemeDefault.ThemeElements.ClrScheme.ChildNodes.Where(x => x.XmlEl.Name == ThemeColor)
+                        .FirstOrDefault()?.FindChild<SrgbClr>()?.Value ?? "auto";
+                }
+                return "auto";
+            }
+            set
+            {
+                if (string.IsNullOrEmpty(value))
+                    RemoveAttribute("w:val");
+                else
+                    SetAttribute("w:val", value.Replace("000000", "auto"));
+
+                RemoveAttribute("w:themeColor");
+                NodeChanded();
+            }
+        }
+
+        public string ThemeColor
+        {
+            get
+            {
+                if (HasAttribute("w:themeColor"))
+                    return GetAttribute("w:themeColor");
+                else
+                    return null;
             }
         }
     }
 
     public class NoProof : Node
     {
-        public NoProof() : base("w:noProof")
-        {
-        }
+        public NoProof() : base("w:noProof") { }
 
-        public NoProof(Node parent) : base(parent, "w:noProof")
-        {
-        }
+        public NoProof(Node parent) : base(parent, "w:noProof") { }
 
-        public NoProof(XmlElement xmlElement, Node parent) : base(xmlElement, parent, "w:noProof")
-        {
-        }
+        public NoProof(XmlElement xmlElement, Node parent) : base(xmlElement, parent, "w:noProof") { }
     }
 
     public class ProofErr : Node
