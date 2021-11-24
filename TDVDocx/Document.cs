@@ -350,6 +350,7 @@ namespace TDV.Docx
             set { FindChildOrCreate<RBorder>().Border = value; }
         }
 
+
         public void CompareBorder(Border b, string author = "TDV")
         {
             if (b == null)
@@ -1318,6 +1319,14 @@ namespace TDV.Docx
             get { return FindChildOrCreate<PBorder>(); }
         }
 
+        public override void CreateChangeNode<T1>(string author)
+        {
+            base.CreateChangeNode<T1>(author);
+            if (typeof(T1) == typeof(PprChange))
+            {
+                FindChild<PprChange>().FindChild<PProp>().FindChild<RProp>()?.Delete();
+            }
+        }
 
         public void CompareHorizontalAlign(HORIZONTAL_ALIGN horizontalAlign, string author = "TDV")
         {
@@ -1569,7 +1578,10 @@ namespace TDV.Docx
         /// </summary>
         public Border Border
         {
-            get { return FindChild<RProp>()?.Border ?? new Border(); }
+            get
+            {
+                return FindChild<RProp>()?.Border ?? new Border();
+            }
             set { RProp.Border = value; }
         }
 
@@ -2435,7 +2447,7 @@ namespace TDV.Docx
                 }
             }
 
-            //PProp.RProp.CompareStyle(style, author);
+            PProp.RProp.CompareStyle(style, author);
         }
 
         public void ComparePStyle(ParagraphStyle style, string author = "TDV")
@@ -3770,6 +3782,7 @@ namespace TDV.Docx
             }
         }
     }
+
 
     public class PBorder : Node
     {
@@ -5250,9 +5263,10 @@ namespace TDV.Docx
         {
         }
 
-        public U(Node parent, int numId) : base(parent, "w:u")
+        public U(XmlElement xmlElement, Node parent) : base(xmlElement, parent, "w:u")
         {
         }
+
 
         public LINE_TYPE Value
         {

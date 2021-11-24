@@ -74,6 +74,12 @@ namespace TDV.Docx
             return new ParagraphStyle(horizontalAlign, borderLeft, borderRight, borderTop, borderBottom,borderBetween,borderBar, spacingBefore,
                 spacingAfter, spacingLine, indentingFirstLine, indentingHanging, indentingLeft, indentingRight);
         }
+
+        public ParagraphStyle SetHorizontalAlign(HORIZONTAL_ALIGN value)
+        {
+            horizontalAlign = value;
+            return this;
+        }
     }
 
     public class RunStyle
@@ -106,6 +112,7 @@ namespace TDV.Docx
             isBold = value;
             return this;
         }
+        
 
         public static bool operator !=(RunStyle a, RunStyle b)
         {
@@ -843,6 +850,9 @@ namespace TDV.Docx
                         case "w:color":
                             result.Add(new WColor(item, this));
                             break;
+                        case "w:u":
+                            result.Add(new U(item, this));
+                            break;
                         default:
                             result.Add(new Node(item, this, item.Name));
                             break;
@@ -862,7 +872,7 @@ namespace TDV.Docx
 
         internal List<Node> baseStyleNodes = new List<Node>();
         private bool ChangeNodeCreated=false;
-        public void CreateChangeNode<T>(string author) where T:ChangeNode
+        public virtual void CreateChangeNode<T>(string author) where T:ChangeNode
         {
             if (ChangeNodeCreated)
                 return;
@@ -874,41 +884,8 @@ namespace TDV.Docx
                 throw new NotImplementedException();
             ChangeNodeCreated = true;
             changeNode.Author = author;
-            //return (T)changeNode;
         }
-        //public virtual void CreateChangeNode(string changeNodeName = "w:pPrChange", XmlElement moveChangeNodeTo = null, string author = "TDV")
-        //{
-        //    XmlElement oldNode = this.CopyXmlElement();
-        //    if (moveChangeNodeTo == null)
-        //        moveChangeNodeTo = XmlEl;
-        //    XmlElement nChange = (XmlElement)moveChangeNodeTo.SelectSingleNode(changeNodeName, Nsmgr);
-        //    //создать ноду w: rPrChange если она не создана
-        //    if (nChange == null)
-        //    {
-        //        nChange = XmlDoc.CreateElement(changeNodeName, XmlDoc.DocumentElement.NamespaceURI);
-        //        nChange.SetAttribute("id", XmlEl.NamespaceURI, (GetDocxDocument().Document.GetNextId()).ToString());
-        //        moveChangeNodeTo.AppendChild(nChange);
-        //    }
-        //    if (nChange.SelectSingleNode(oldNode.Name, Nsmgr) == null)
-        //        nChange.AppendChild(oldNode); //Скопировать в нее этот rPr
-        //    nChange.SetAttribute("author", XmlEl.NamespaceURI, author);
-        //    nChange.SetAttribute("date", XmlEl.NamespaceURI, DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ssZ"));
 
-        //    if (changeNodeName == "w:pPrChange")
-        //    {
-        //        var rprForDel = nChange.SelectSingleNode("w:rPr", Nsmgr);
-        //        if(rprForDel!=null)
-        //            nChange.RemoveChild(rprForDel);
-        //    }else if (changeNodeName == "w:sectPrChange")
-        //    {
-        //        var sectChangeNode = nChange.SelectSingleNode("w:sectPr", Nsmgr);
-        //        foreach (XmlElement forDel in sectChangeNode.SelectNodes("w:headerReference", Nsmgr))
-        //            sectChangeNode.RemoveChild(forDel);
-        //        foreach (XmlElement forDel in sectChangeNode.SelectNodes("w:footerReference", Nsmgr))
-        //            sectChangeNode.RemoveChild(forDel);
-
-        //    }
-        //}
 
         public XmlElement XmlEl;
     
