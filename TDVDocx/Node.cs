@@ -853,6 +853,15 @@ namespace TDV.Docx
                         case "w:u":
                             result.Add(new U(item, this));
                             break;
+                        case "w:pPrDefault":
+                            result.Add(new PPrDefault(item, this));
+                            break;
+                        case "w:rPrDefault":
+                            result.Add(new RPrDefault(item, this));
+                            break;
+                        case "w:docDefaults":
+                            result.Add(new DocDefaults(item, this));
+                            break;
                         default:
                             result.Add(new Node(item, this, item.Name));
                             break;

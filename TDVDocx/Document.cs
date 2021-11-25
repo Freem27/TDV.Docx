@@ -301,6 +301,18 @@ namespace TDV.Docx
         {
         }
 
+
+
+        public RProp DefaultStyle
+        {
+            get
+            {
+                if (Parent is RPrDefault)
+                    return null;
+                return GetDocxDocument().Styles?.DocDefaults?.RPrDefault?.RProp;
+            }
+        }
+
         public Lang Lang
         {
             get { return FindChildOrCreate<Lang>(); }
@@ -469,7 +481,7 @@ namespace TDV.Docx
 
         public string Font
         {
-            get { return FindChild<RFonts>()?.FontName ?? Style?.GetStyleProp<RProp>()?.Font ?? null; }
+            get { return FindChild<RFonts>()?.FontName ?? Style?.GetStyleProp<RProp>()?.Font ?? DefaultStyle?.Font?? null; }
             set
             {
                 RFonts rFonts = FindChildOrCreate<RFonts>(INSERT_POS.FIRST);
@@ -494,7 +506,7 @@ namespace TDV.Docx
 
         public Style Style
         {
-            get { return FindChild<RStyleNode>()?.Style ?? null; }
+            get { return FindChild<RStyleNode>()?.Style; }
             set { FindChildOrCreate<RStyleNode>().Style = value; }
         }
 
@@ -504,7 +516,7 @@ namespace TDV.Docx
             {
                 Sz sz = FindChild<Sz>();
                 SzCs szCs = FindChild<SzCs>();
-                return sz?.Value / 2 ?? szCs?.Value / 2 ?? Style?.GetStyleProp<RProp>()?.FontSize;
+                return sz?.Value / 2 ?? szCs?.Value / 2 ?? Style?.GetStyleProp<RProp>()?.FontSize?? DefaultStyle?.FontSize;
             }
             set
             {
@@ -528,7 +540,7 @@ namespace TDV.Docx
             {
                 if (FindChild<B>() != null)
                     return true;
-                return Style?.GetStyleProp<RProp>()?.IsBold ?? false;
+                return Style?.GetStyleProp<RProp>()?.IsBold ?? DefaultStyle?.IsBold ?? false;
             }
             set
             {
@@ -545,7 +557,7 @@ namespace TDV.Docx
             {
                 if (FindChild<I>() != null)
                     return true;
-                return Style?.GetStyleProp<RProp>()?.IsItalic ?? false;
+                return Style?.GetStyleProp<RProp>()?.IsItalic ?? DefaultStyle?.IsItalic?? false;
             }
             set
             {
@@ -565,7 +577,7 @@ namespace TDV.Docx
             {
                 if (FindChild<Strike>() != null)
                     return true;
-                return Style?.GetStyleProp<RProp>()?.IsStrike ?? false;
+                return Style?.GetStyleProp<RProp>()?.IsStrike ??DefaultStyle?.IsStrike?? false;
             }
             set
             {
@@ -580,17 +592,11 @@ namespace TDV.Docx
         {
             get
             {
-                U u = FindChild<U>();
-                if (u != null)
-                    return u.Value;
-                return Style?.FindChild<RProp>().Underline ?? LINE_TYPE.NONE;
+                return FindChild<U>()?.Value?? Style?.FindChild<RProp>()?.Underline ?? DefaultStyle?.Underline?? LINE_TYPE.NONE;
             }
             set
             {
-                if (value == LINE_TYPE.NONE)
-                    FindChild<U>()?.Delete();
-                else
-                    FindChildOrCreate<U>().Value = value;
+                FindChildOrCreate<U>().Value = value;
             }
         }
 
@@ -601,7 +607,8 @@ namespace TDV.Docx
         {
             get
             {
-                var n = XmlEl.SelectSingleNode("w:highlight", Nsmgr);
+                return FindChild<Highlight>()?.Value ?? Style?.GetStyleProp<PProp>()?.FindChild<Highlight>()?.Value??DefaultStyle?.Highlight;
+                /*var n = XmlEl.SelectSingleNode("w:highlight", Nsmgr);
                 if (n != null && n.Attributes["w:val"] != null)
                     return n.Attributes["w:val"].Value;
                 if (Style != null)
@@ -611,10 +618,15 @@ namespace TDV.Docx
                         return styleRProp.Highlight;
                 }
 
-                return "";
+                return "";*/
             }
             set
             {
+                if(string.IsNullOrEmpty(value))
+                    FindChild<Highlight>()?.Delete();
+                else
+                FindChildOrCreate<Highlight>().Value = value;
+/*
                 XmlElement n = (XmlElement) XmlEl.SelectSingleNode("w:highlight", Nsmgr);
                 if (String.IsNullOrEmpty(value) && n != null)
                     XmlEl.RemoveChild(n);
@@ -624,7 +636,7 @@ namespace TDV.Docx
                     n = XmlDoc.CreateElement("w", "highlight", XmlEl.NamespaceURI);
 
                 n.SetAttribute("val", XmlEl.NamespaceURI, string.IsNullOrEmpty(value) ? "auto" : value);
-                XmlEl.AppendChild(n);
+                XmlEl.AppendChild(n);*/
             }
         }
 
@@ -635,14 +647,13 @@ namespace TDV.Docx
         {
             get
             {
-                return FindChild<WColor>()?.Value ?? Style?.GetStyleProp<RProp>()?.Color ?? null;
+                return FindChild<WColor>()?.Value ?? Style?.GetStyleProp<RProp>()?.Color ??DefaultStyle?.Color?? null;
             }
             set
             {
-                if(string.IsNullOrEmpty(value))
-                    FindChild<WColor>()?.Delete();
-                else
-                    FindChildOrCreate<WColor>().Value = value;
+                if (string.IsNullOrEmpty(value))
+                    value = "auto";
+                FindChildOrCreate<WColor>().Value = value;
             }
         }
     }
@@ -892,17 +903,11 @@ namespace TDV.Docx
     /// </summary>
     public class Ind : Node
     {
-        public Ind() : base("w:ind")
-        {
-        }
+        public Ind() : base("w:ind") { }
 
-        public Ind(Node parent) : base(parent, "w:ind")
-        {
-        }
+        public Ind(Node parent) : base(parent, "w:ind") { }
 
-        public Ind(XmlElement xmlElement, Node parent) : base(xmlElement, parent, "w:ind")
-        {
-        }
+        public Ind(XmlElement xmlElement, Node parent) : base(xmlElement, parent, "w:ind") { }
 
         public override void NodeChanded()
         {
@@ -1027,13 +1032,13 @@ namespace TDV.Docx
         /// <summary>
         /// Межстрочный интервал.
         /// </summary>
-        public double Line
+        public double? Line
         {
             get
             {
                 if (HasAttribute("w:line"))
                     return double.Parse(GetAttribute("w:line")) / 240;
-                return 0;
+                return null;
             }
             set
             {
@@ -1054,7 +1059,7 @@ namespace TDV.Docx
             {
                 if (HasAttribute("w:before"))
                     return new Size(Int32.Parse(GetAttribute("w:before")) / 20);
-                else return new Size(0);
+                else return null;
             }
             set
             {
@@ -1076,7 +1081,7 @@ namespace TDV.Docx
             {
                 if (HasAttribute("w:after"))
                     return new Size(Int32.Parse(GetAttribute("w:after")) / 20);
-                else return new Size(0);
+                else return null;
             }
             set
             {
@@ -1091,17 +1096,11 @@ namespace TDV.Docx
 
     public class PProp : Node
     {
-        public PProp() : base("w:pPr")
-        {
-        }
+        public PProp() : base("w:pPr") { }
 
-        public PProp(Node parent) : base(parent, "w:pPr")
-        {
-        }
+        public PProp(Node parent) : base(parent, "w:pPr") { }
 
-        public PProp(XmlElement xmlElement, Node parent) : base(xmlElement, parent, "w:pPr")
-        {
-        }
+        public PProp(XmlElement xmlElement, Node parent) : base(xmlElement, parent, "w:pPr") { }
 
         public void CompareStyle(ParagraphStyle style, string author)
         {
@@ -1140,13 +1139,13 @@ namespace TDV.Docx
 
         public Size IndentingLeft
         {
-            get { return FindChild<Ind>()?.Left ?? Style?.FindChild<PProp>()?.FindChild<Ind>()?.Left ?? new Size(0); }
+            get { return FindChild<Ind>()?.Left ?? Style?.FindChild<PProp>()?.FindChild<Ind>()?.Left ?? DefaultStyle?.FindChild<Ind>()?.Left ?? new Size(0); }
             set { Ind.Left = value; }
         }
 
         public Size IndentingRight
         {
-            get { return FindChild<Ind>()?.Right ?? Style?.FindChild<PProp>()?.FindChild<Ind>()?.Right ?? new Size(0); }
+            get { return FindChild<Ind>()?.Right ?? Style?.FindChild<PProp>()?.FindChild<Ind>()?.Right ?? DefaultStyle?.FindChild<Ind>()?.Right?? new Size(0); }
             set { Ind.Right = value; }
         }
 
@@ -1155,7 +1154,7 @@ namespace TDV.Docx
             get
             {
                 return FindChild<Ind>()?.FirstLine ??
-                       Style?.FindChild<PProp>()?.FindChild<Ind>()?.FirstLine ?? new Size(0);
+                       Style?.FindChild<PProp>()?.FindChild<Ind>()?.FirstLine ?? DefaultStyle?.FindChild<Ind>()?.FirstLine?? new Size(0);
             }
             set { Ind.FirstLine = value; }
         }
@@ -1164,7 +1163,7 @@ namespace TDV.Docx
         {
             get
             {
-                return FindChild<Ind>()?.Hanging ?? Style?.FindChild<PProp>()?.FindChild<Ind>()?.Hanging ?? new Size(0);
+                return FindChild<Ind>()?.Hanging ?? Style?.FindChild<PProp>()?.FindChild<Ind>()?.Hanging ?? DefaultStyle?.FindChild<Ind>()?.Hanging ?? new Size(0);
             }
             set { Ind.Hanging = value; }
         }
@@ -1262,7 +1261,7 @@ namespace TDV.Docx
 
         public double SpacingLine
         {
-            get { return FindChild<Spacing>()?.Line ?? Style?.FindChild<PProp>()?.FindChild<Spacing>()?.Line ?? 0; }
+            get { return FindChild<Spacing>()?.Line ?? Style?.FindChild<PProp>()?.FindChild<Spacing>()?.Line ?? DefaultStyle?.FindChild<Spacing>()?.Line?? 0; }
             set { Spacing.Line = value; }
         }
 
@@ -1271,7 +1270,7 @@ namespace TDV.Docx
             get
             {
                 return FindChild<Spacing>()?.After ??
-                       Style?.FindChild<PProp>()?.FindChild<Spacing>()?.After ?? new Size(0);
+                       Style?.FindChild<PProp>()?.FindChild<Spacing>()?.After ?? DefaultStyle?.FindChild<Spacing>()?.After ?? new Size(0);
             }
             set { Spacing.After = value; }
         }
@@ -1281,7 +1280,7 @@ namespace TDV.Docx
             get
             {
                 return FindChild<Spacing>()?.Before ??
-                       Style?.FindChild<PProp>()?.FindChild<Spacing>()?.Before ?? new Size(0);
+                       Style?.FindChild<PProp>()?.FindChild<Spacing>()?.Before ?? DefaultStyle?.FindChild<Spacing>()?.Before ?? new Size(0);
             }
             set { Spacing.Before = value; }
         }
@@ -1341,9 +1340,19 @@ namespace TDV.Docx
         {
             get
             {
-                return FindChild<Jc>()?.Value ?? Style?.FindChild<PProp>()?.HorizontalAlign ?? HORIZONTAL_ALIGN.LEFT;
+                return FindChild<Jc>()?.Value ?? Style?.FindChild<PProp>()?.HorizontalAlign ?? DefaultStyle?.HorizontalAlign ?? HORIZONTAL_ALIGN.LEFT;
             }
             set { FindChildOrCreate<Jc>(INSERT_POS.FIRST).Value = value; }
+        }
+
+        public PProp DefaultStyle
+        {
+            get
+            {
+                if (Parent is PPrDefault)
+                    return null;
+                return GetDocxDocument().Styles?.DocDefaults?.PPrDefault?.PProp;
+            }
         }
 
         public Style Style
@@ -1353,7 +1362,7 @@ namespace TDV.Docx
 
         public bool IsBold
         {
-            get { return FindChild<RProp>()?.IsBold ?? Style?.FindChild<RProp>()?.IsBold ?? false; }
+            get { return FindChild<RProp>()?.IsBold ?? Style?.FindChild<RProp>()?.IsBold ??DefaultStyle?.IsBold?? false; }
         }
 
         public PStyle PStyle
@@ -1363,7 +1372,7 @@ namespace TDV.Docx
 
         public bool IsItalic
         {
-            get { return FindChild<RProp>()?.IsItalic ?? Style?.FindChild<RProp>()?.IsItalic ?? false; }
+            get { return FindChild<RProp>()?.IsItalic ?? Style?.FindChild<RProp>()?.IsItalic ?? DefaultStyle?.IsItalic?? false; }
         }
     }
 
@@ -1603,13 +1612,13 @@ namespace TDV.Docx
         public RProp RProp
         {
             get { return FindChildOrCreate<RProp>(INSERT_POS.FIRST); }
-            set
+            /*set
             {
                 RProp rProp = FindChild<RProp>();
                 if (rProp != null)
                     XmlEl.RemoveChild(XmlEl);
                 XmlEl.AppendChild(value.CopyXmlElement());
-            }
+            }*/
         }
 
         /// <summary>
@@ -1815,13 +1824,9 @@ namespace TDV.Docx
 
     public class Paragraph : Node
     {
-        public Paragraph() : base("w:p")
-        {
-        }
+        public Paragraph() : base("w:p") { }
 
-        public Paragraph(XmlElement xmlElement, Node parent) : base(xmlElement, parent, "w:p")
-        {
-        }
+        public Paragraph(XmlElement xmlElement, Node parent) : base(xmlElement, parent, "w:p") { }
 
         /// <summary>
         /// Замена кавычек в тексте параграфа
@@ -2157,43 +2162,43 @@ namespace TDV.Docx
 
         public Size SpacingBefore
         {
-            get { return PProp.Spacing.Before; }
+            get { return PProp.SpacingBefore; }
             set { PProp.Spacing.Before = value; }
         }
 
         public Size SpacingAfter
         {
-            get { return PProp.Spacing.After; }
+            get { return PProp.SpacingAfter; }
             set { PProp.Spacing.After = value; }
         }
 
-        public double SpacingLine
+        public double? SpacingLine
         {
-            get { return PProp.Spacing.Line; }
+            get { return PProp.SpacingLine; }
             set { PProp.Spacing.Line = value; }
         }
 
         public Size IndentingFirstLine
         {
-            get { return PProp.Ind.FirstLine; }
+            get { return PProp.IndentingFirstLine; }
             set { PProp.Ind.FirstLine = value; }
         }
 
         public Size IndentingRight
         {
-            get { return PProp.Ind.Right; }
+            get { return PProp.IndentingRight; }
             set { PProp.Ind.Right = value; }
         }
 
         public Size IndentingLeft
         {
-            get { return PProp.Ind.Left; }
+            get { return PProp.IndentingLeft; }
             set { PProp.Ind.Left = value; }
         }
 
         public Size IndentingHanging
         {
-            get { return PProp.Ind.Hanging; }
+            get { return PProp.IndentingHanging; }
             set { PProp.Ind.Hanging = value; }
         }
 
@@ -2244,7 +2249,7 @@ namespace TDV.Docx
         public ParagraphStyle GetPStyle()
         {
             return new ParagraphStyle(HorizontalAlign, BorderLeft, BorderRight, BorderTop, BorderBottom, BorderBetween,
-                BorderBar, SpacingBefore, SpacingAfter, SpacingLine
+                BorderBar, SpacingBefore, SpacingAfter, SpacingLine??0
                 , IndentingFirstLine, IndentingHanging, IndentingLeft, IndentingRight, null, 0);
         }
 
@@ -5274,33 +5279,12 @@ namespace TDV.Docx
             {
                 if (!HasAttribute("w:val"))
                     return LINE_TYPE.NONE;
-                switch (GetAttribute("w:val"))
-                {
-                    case "dotted":
-                        return LINE_TYPE.DOTTED;
-                    case "single":
-                        return LINE_TYPE.SINGLE;
-                    default:
-                        throw new NotImplementedException();
-                }
+
+                return EnumExtentions.ToEnum<LINE_TYPE>(GetAttribute("w:val"));
             }
             set
             {
-                switch (value)
-                {
-                    case LINE_TYPE.NONE:
-                        Delete();
-                        return;
-                    case LINE_TYPE.SINGLE:
-                        SetAttribute("w:val", "single");
-                        return;
-                    case LINE_TYPE.DOTTED:
-                        SetAttribute("w:val", "dotted");
-                        return;
-                }
-
-                throw new NotImplementedException();
-
+                  SetAttribute("w:val", value.ToStringValue());
             }
         }
     }

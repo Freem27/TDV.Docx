@@ -34,6 +34,14 @@ namespace TDV.Docx
             get { return FindChilds<Style>(); }
         }
 
+        public DocDefaults DocDefaults
+        {
+            get
+            {
+                return FindChild<DocDefaults>();
+            }
+        }
+
         public Style GetDefaultParagraphFontStyle()
         {
                 Style result = null;
@@ -258,6 +266,48 @@ namespace TDV.Docx
         }
     }
 
+
+    public class DocDefaults : Node
+    {
+        public DocDefaults() : base("w:docDefaults") { }
+        public DocDefaults(Node parent) : base(parent, "w:docDefaults") { }
+        public DocDefaults(XmlElement xmlElement, Node parent) : base(xmlElement, parent, "w:docDefaults") { }
+
+        public RPrDefault RPrDefault
+        {
+            get { return FindChild<RPrDefault>(); }
+        }
+
+        public PPrDefault PPrDefault
+        {
+            get { return FindChild<PPrDefault>(); }
+        }
+    }
+
+    public class PPrDefault : Node
+    {
+        public PPrDefault() : base("w:pPrDefault") { }
+        public PPrDefault(Node parent) : base(parent, "w:pPrDefault") { }
+        public PPrDefault(XmlElement xmlElement, Node parent) : base(xmlElement, parent, "w:pPrDefault") { }
+
+        public PProp PProp
+        {
+            get { return FindChild<PProp>(); }
+        }
+    }
+
+    public class RPrDefault : Node
+    {
+        public RPrDefault() : base("w:rPrDefault") { }
+        public RPrDefault(Node parent) : base(parent, "w:rPrDefault") { }
+        public RPrDefault(XmlElement xmlElement, Node parent) : base(xmlElement, parent, "w:rPrDefault") { }
+
+        public RProp RProp
+        {
+            get { return FindChild<RProp>(); }
+        }
+
+    }
 
     public class SemiHidden : Node
     {
