@@ -4884,77 +4884,6 @@ namespace TDV.Docx
         }
     }
 
-    public enum NUM_FMT
-    {
-        NONE,
-
-        /// <summary>
-        /// 1, 2, 3
-        /// </summary>
-        DEFAULT,
-
-        /// <summary>
-        /// A, B, C
-        /// </summary>
-        UPPER_LETTER,
-
-        /// <summary>
-        /// i, ii, iii
-        /// </summary>
-        LOWER_ROMAN,
-
-        /// <summary>
-        /// I, II, III
-        /// </summary>
-        UPPER_ROMAN,
-
-        /// <summary>
-        /// Набор символов из Чикагского руководства по стилю. (например, *, †, ‡, §)
-        /// </summary>
-        CHICAGO,
-
-        /// <summary>
-        /// Маркер
-        /// </summary>
-        BULLET,
-
-        /// <summary>
-        /// текст основного языка. (На английском: One, Two, Three и т.д.)
-        /// </summary>
-        CARDINAL_TEXT,
-
-        /// <summary>
-        /// десятичная нумерация (1, 2, 3, 4 и т. д.)
-        /// </summary>
-        DECIMAL,
-
-        /// <summary>
-        /// Десятичное число округленное
-        /// </summary>
-        DECIMAL_ENCLOSED_CIRCLE,
-
-        /// <summary>
-        /// Десятичное число с точкой
-        /// </summary>
-        DECIMAL_ENCLOSED_FULL_STOP,
-
-        /// <summary>
-        /// десятичное число в круглых скобках
-        /// </summary>
-        DECIMAL_ENCLOSED_PAREN,
-
-        /// <summary>
-        /// десятичное число, но с нулем, добавленным к числам от 1 до 9
-        /// </summary>
-        DECIMAL_ZERO,
-
-        /// <summary>
-        /// текст основного языка. (На английском, First, Second, Third и т.д.)
-        /// </summary>
-        ORDINAL_TEXT,
-
-        IDEOGRAPN_DIGITAL
-    }
 
     /// <summary>
     /// Формат сносок
@@ -4974,13 +4903,13 @@ namespace TDV.Docx
             get
             {
                 if (!HasAttribute("w:val"))
-                    return NUM_FMT.DEFAULT;
+                    return NUM_FMT.NONE;
 
                 return EnumExtentions.ToEnum<NUM_FMT>(XmlEl.GetAttribute("w:val"));
             }
             set
             {
-                if (value == NUM_FMT.DEFAULT)
+                if (value == NUM_FMT.NONE)
                 {
                     RemoveAttribute("w:val");
                     return;

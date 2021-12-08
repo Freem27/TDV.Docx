@@ -188,6 +188,250 @@ wave - a wavy line
         /// <summary>
         MINOR_HANSI
     }
+
+    public enum NUM_FMT
+    {
+        /// <summary>
+        /// AIUEO Орден Хирагана
+        /// <summary>
+        AIUEO,
+        /// <summary>
+        /// Полноразмерный AIUEO Заказать Хирагана
+        /// <summary>
+        AIUEO_FULL_WIDTH,
+        /// <summary>
+        /// Арабские цифры абджад
+        /// <summary>
+        ARABIC_ABJAD,
+        /// <summary>
+        /// Арабский алфавит
+        /// <summary>
+        ARABIC_ALPHA,
+        /// <summary>
+        /// Пуля
+        /// <summary>
+        BULLET,
+        /// <summary>
+        /// Кардинальный текст
+        /// <summary>
+        CARDINAL_TEXT,
+        /// <summary>
+        /// Чикагское руководство стиля
+        /// <summary>
+        CHICAGO,
+        /// <summary>
+        /// Китайская система подсчета
+        /// <summary>
+        CHINESE_COUNTING,
+        /// <summary>
+        /// Китайская система подсчета тысяч
+        /// <summary>
+        CHINESE_COUNTING_THOUSAND,
+        /// <summary>
+        /// Китайский упрощенный юридический формат
+        /// <summary>
+        CHINESE_LEGAL_SIMPLIFIED,
+        /// <summary>
+        /// Корейская нумерация Chosung
+        /// <summary>
+        CHOSUNG,
+        /// <summary>
+        /// Десятичные числа
+        /// <summary>
+        DECIMAL,
+        /// <summary>
+        /// Десятичные числа, заключенные в круг
+        /// <summary>
+        DECIMAL_ENCLOSED_CIRCLE,
+        /// <summary>
+        /// Десятичные числа, заключенные в круг
+        /// <summary>
+        DECIMAL_ENCLOSED_CIRCLE_CHINESE,
+        /// <summary>
+        /// Десятичные числа с точкой
+        /// <summary>
+        DECIMAL_ENCLOSED_FULLSTOP,
+        /// <summary>
+        /// Десятичные числа в круглых скобках
+        /// <summary>
+        DECIMAL_ENCLOSED_PAREN,
+        /// <summary>
+        /// Двухбайтовые арабские цифры
+        /// <summary>
+        DECIMAL_FULL_WIDTH,
+        /// <summary>
+        /// Альтернативные двухбайтовые арабские цифры
+        /// <summary>
+        DECIMAL_FULL_WIDTH2,
+        /// <summary>
+        /// Однобайтовые арабские цифры
+        /// <summary>
+        DECIMAL_HALF_WIDTH,
+        /// <summary>
+        /// Начальные нулевые арабские цифры
+        /// <summary>
+        DECIMAL_ZERO,
+        /// <summary>
+        /// Корейская нумерация Ганада
+        /// <summary>
+        GANADA,
+        /// <summary>
+        /// Еврейские цифры
+        /// <summary>
+        HEBREW1,
+        /// <summary>
+        /// Еврейский алфавит
+        /// <summary>
+        HEBREW2,
+        /// <summary>
+        /// Шестнадцатеричная нумерация
+        /// <summary>
+        HEX,
+        /// <summary>
+        /// Согласные хинди
+        /// <summary>
+        HINDI_CONSONANTS,
+        /// <summary>
+        /// Система подсчета хинди
+        /// <summary>
+        HINDI_COUNTING,
+        /// <summary>
+        /// Числа на хинди
+        /// <summary>
+        HINDI_NUMBERS,
+        /// <summary>
+        /// Гласные хинди
+        /// <summary>
+        HINDI_VOWELS,
+        /// <summary>
+        /// Идеографы
+        /// <summary>
+        IDEOGRAPH_DIGITAL,
+        /// <summary>
+        /// Идеографы, заключенные в круг
+        /// <summary>
+        IDEOGRAPH_ENCLOSED_CIRCLE,
+        /// <summary>
+        /// Формат традиционного правового идеографа
+        /// <summary>
+        IDEOGRAPH_LEGAL_TRADITIONAL,
+        /// <summary>
+        /// Традиционный формат идеографа
+        /// <summary>
+        IDEOGRAPH_TRADITIONAL,
+        /// <summary>
+        /// Формат идеографа зодиака
+        /// <summary>
+        IDEOGRAPH_ZODIAC,
+        /// <summary>
+        /// Традиционный формат идеографа зодиака
+        /// <summary>
+        IDEOGRAPH_ZODIAC_TRADITIONAL,
+        /// <summary>
+        /// Ироха Заказанная Катакана
+        /// <summary>
+        IROHA,
+        /// <summary>
+        /// Полноразмерная Ироха Заказанная Катакана
+        /// <summary>
+        IROHA_FULL_WIDTH,
+        /// <summary>
+        /// Японская система подсчета
+        /// <summary>
+        JAPANESE_COUNTING,
+        /// <summary>
+        /// Японская цифровая система подсчета десяти тысяч
+        /// <summary>
+        JAPANESE_DIGITAL_TEN_THOUSAND,
+        /// <summary>
+        /// Японская юридическая нумерация
+        /// <summary>
+        JAPANESE_LEGAL,
+        /// <summary>
+        /// Корейская система подсчета
+        /// <summary>
+        KOREAN_COUNTING,
+        /// <summary>
+        /// Корейская цифровая система подсчета
+        /// <summary>
+        KOREAN_DIGITAL,
+        /// <summary>
+        /// Альтернативная корейская цифровая система подсчета
+        /// <summary>
+        KOREAN_DIGITAL2,
+        /// <summary>
+        /// Корейская юридическая нумерация
+        /// <summary>
+        KOREAN_LEGAL,
+        /// <summary>
+        /// Строчный латинский алфавит
+        /// <summary>
+        LOWER_LETTER,
+        /// <summary>
+        /// Строчные римские цифры
+        /// <summary>
+        LOWER_ROMAN,
+        /// <summary>
+        /// Без нумерации
+        /// <summary>
+        NONE,
+        /// <summary>
+        /// Число с тире
+        /// <summary>
+        NUMBERIN_DASH,
+        /// <summary>
+        /// Порядковый
+        /// <summary>
+        ORDINAL,
+        /// <summary>
+        /// Порядковый текст
+        /// <summary>
+        ORDINAL_TEXT,
+        /// <summary>
+        /// Русский алфавит в нижнем регистре
+        /// <summary>
+        RUSSIAN_LOWER,
+        /// <summary>
+        /// Русский алфавит в верхнем регистре
+        /// <summary>
+        RUSSIAN_UPPER,
+        /// <summary>
+        /// Тайваньская система подсчета
+        /// <summary>
+        TAIWANESE_COUNTING,
+        /// <summary>
+        /// Тайваньская система подсчета тысяч
+        /// <summary>
+        TAIWANESE_COUNTING_THOUSAND,
+        /// <summary>
+        /// Тайваньская цифровая система подсчета
+        /// <summary>
+        TAIWANESE_DIGITAL,
+        /// <summary>
+        /// Тайская система подсчета
+        /// <summary>
+        THAI_COUNTING,
+        /// <summary>
+        /// Тайские буквы
+        /// <summary>
+        THAI_LETTERS,
+        /// <summary>
+        /// Тайские цифры
+        /// <summary>
+        THAI_NUMBERS,
+        /// <summary>
+        /// Латинский алфавит в верхнем регистре
+        /// <summary>
+        UPPER_LETTER,
+        /// <summary>
+        /// Римские цифры в верхнем регистре
+        /// <summary>
+        UPPER_ROMAN,
+        /// <summary>
+        /// Вьетнамские цифры
+        /// <summary>
+        VIETNAMESE_COUNTING
+    }
     public static class EnumExtentions
     {
         public static string ToStringValue(this LINE_TYPE e) {
@@ -277,36 +521,126 @@ wave - a wavy line
         {
             switch (e)
             {
-                case NUM_FMT.NONE:
-                    return "none";
-                case NUM_FMT.DEFAULT:
-                    return "";
-                case NUM_FMT.UPPER_LETTER:
-                    return "upperLetter";
-                case NUM_FMT.LOWER_ROMAN:
-                    return "lowerRoman";
-                case NUM_FMT.UPPER_ROMAN:
-                    return "upperRoman";
-                case NUM_FMT.CHICAGO:
-                    return "chicago";
+                case NUM_FMT.AIUEO:
+                    return "aiueo";
+                case NUM_FMT.AIUEO_FULL_WIDTH:
+                    return "aiueoFullWidth";
+                case NUM_FMT.ARABIC_ABJAD:
+                    return "arabicAbjad";
+                case NUM_FMT.ARABIC_ALPHA:
+                    return "arabicAlpha";
                 case NUM_FMT.BULLET:
                     return "bullet";
                 case NUM_FMT.CARDINAL_TEXT:
                     return "cardinalText";
+                case NUM_FMT.CHICAGO:
+                    return "chicago";
+                case NUM_FMT.CHINESE_COUNTING:
+                    return "chineseCounting";
+                case NUM_FMT.CHINESE_COUNTING_THOUSAND:
+                    return "chineseCountingThousand";
+                case NUM_FMT.CHINESE_LEGAL_SIMPLIFIED:
+                    return "chineseLegalSimplified";
+                case NUM_FMT.CHOSUNG:
+                    return "chosung";
                 case NUM_FMT.DECIMAL:
                     return "decimal";
                 case NUM_FMT.DECIMAL_ENCLOSED_CIRCLE:
                     return "decimalEnclosedCircle";
-                case NUM_FMT.DECIMAL_ENCLOSED_FULL_STOP:
-                    return "decimalEnclosedFullstop ";
+                case NUM_FMT.DECIMAL_ENCLOSED_CIRCLE_CHINESE:
+                    return "decimalEnclosedCircleChinese";
+                case NUM_FMT.DECIMAL_ENCLOSED_FULLSTOP:
+                    return "decimalEnclosedFullstop";
                 case NUM_FMT.DECIMAL_ENCLOSED_PAREN:
                     return "decimalEnclosedParen";
+                case NUM_FMT.DECIMAL_FULL_WIDTH:
+                    return "decimalFullWidth";
+                case NUM_FMT.DECIMAL_FULL_WIDTH2:
+                    return "decimalFullWidth2";
+                case NUM_FMT.DECIMAL_HALF_WIDTH:
+                    return "decimalHalfWidth";
                 case NUM_FMT.DECIMAL_ZERO:
                     return "decimalZero";
+                case NUM_FMT.GANADA:
+                    return "ganada";
+                case NUM_FMT.HEBREW1:
+                    return "hebrew1";
+                case NUM_FMT.HEBREW2:
+                    return "hebrew2";
+                case NUM_FMT.HEX:
+                    return "hex";
+                case NUM_FMT.HINDI_CONSONANTS:
+                    return "hindiConsonants";
+                case NUM_FMT.HINDI_COUNTING:
+                    return "hindiCounting";
+                case NUM_FMT.HINDI_NUMBERS:
+                    return "hindiNumbers";
+                case NUM_FMT.HINDI_VOWELS:
+                    return "hindiVowels";
+                case NUM_FMT.IDEOGRAPH_DIGITAL:
+                    return "ideographDigital";
+                case NUM_FMT.IDEOGRAPH_ENCLOSED_CIRCLE:
+                    return "ideographEnclosedCircle";
+                case NUM_FMT.IDEOGRAPH_LEGAL_TRADITIONAL:
+                    return "ideographLegalTraditional";
+                case NUM_FMT.IDEOGRAPH_TRADITIONAL:
+                    return "ideographTraditional";
+                case NUM_FMT.IDEOGRAPH_ZODIAC:
+                    return "ideographZodiac";
+                case NUM_FMT.IDEOGRAPH_ZODIAC_TRADITIONAL:
+                    return "ideographZodiacTraditional";
+                case NUM_FMT.IROHA:
+                    return "iroha";
+                case NUM_FMT.IROHA_FULL_WIDTH:
+                    return "irohaFullWidth";
+                case NUM_FMT.JAPANESE_COUNTING:
+                    return "japaneseCounting";
+                case NUM_FMT.JAPANESE_DIGITAL_TEN_THOUSAND:
+                    return "japaneseDigitalTenThousand";
+                case NUM_FMT.JAPANESE_LEGAL:
+                    return "japaneseLegal";
+                case NUM_FMT.KOREAN_COUNTING:
+                    return "koreanCounting";
+                case NUM_FMT.KOREAN_DIGITAL:
+                    return "koreanDigital";
+                case NUM_FMT.KOREAN_DIGITAL2:
+                    return "koreanDigital2";
+                case NUM_FMT.KOREAN_LEGAL:
+                    return "koreanLegal";
+                case NUM_FMT.LOWER_LETTER:
+                    return "lowerLetter";
+                case NUM_FMT.LOWER_ROMAN:
+                    return "lowerRoman";
+                case NUM_FMT.NONE:
+                    return "none";
+                case NUM_FMT.NUMBERIN_DASH:
+                    return "numberInDash";
+                case NUM_FMT.ORDINAL:
+                    return "ordinal";
                 case NUM_FMT.ORDINAL_TEXT:
                     return "ordinalText";
-                case NUM_FMT.IDEOGRAPN_DIGITAL:
-                    return "ideographDigital";
+                case NUM_FMT.RUSSIAN_LOWER:
+                    return "russianLower";
+                case NUM_FMT.RUSSIAN_UPPER:
+                    return "russianUpper";
+                case NUM_FMT.TAIWANESE_COUNTING:
+                    return "taiwaneseCounting";
+                case NUM_FMT.TAIWANESE_COUNTING_THOUSAND:
+                    return "taiwaneseCountingThousand";
+                case NUM_FMT.TAIWANESE_DIGITAL:
+                    return "taiwaneseDigital";
+                case NUM_FMT.THAI_COUNTING:
+                    return "thaiCounting";
+                case NUM_FMT.THAI_LETTERS:
+                    return "thaiLetters";
+                case NUM_FMT.THAI_NUMBERS:
+                    return "thaiNumbers";
+                case NUM_FMT.UPPER_LETTER:
+                    return "upperLetter";
+                case NUM_FMT.UPPER_ROMAN:
+                    return "upperRoman";
+                case NUM_FMT.VIETNAMESE_COUNTING:
+                    return "vietnameseCounting";
             }
             throw new NotImplementedException();
         }
@@ -533,37 +867,66 @@ wave - a wavy line
             {
                 switch (value)
                 {
-                    case "":
-                        return (T)(object)NUM_FMT.DEFAULT;
-                    case "upperLetter":
-                        return (T)(object)NUM_FMT.UPPER_LETTER;
-                    case "lowerRoman":
-                        return (T)(object)NUM_FMT.LOWER_ROMAN;
-                    case "upperRoman":
-                        return (T)(object)NUM_FMT.UPPER_ROMAN;
-                    case "chicago":
-                        return (T)(object)NUM_FMT.CHICAGO;
-                    case "bullet":
-                        return (T)(object)NUM_FMT.BULLET;
-                    case "cardinalText":
-                        return (T)(object)NUM_FMT.CARDINAL_TEXT;
-                    case "decimal":
-                        return (T)(object)NUM_FMT.DECIMAL;
-                    case "decimalEnclosedCircle":
-                        return (T)(object)NUM_FMT.DECIMAL_ENCLOSED_CIRCLE;
-                    case "decimalEnclosedFullstop":
-                        return (T)(object)NUM_FMT.DECIMAL_ENCLOSED_FULL_STOP;
-                    case "decimalEnclosedParen":
-                        return (T)(object)NUM_FMT.DECIMAL_ENCLOSED_PAREN;
-                    case "decimalZero":
-                        return (T)(object)NUM_FMT.DECIMAL_ZERO;
-                    case "none":
-                        return (T)(object)NUM_FMT.NONE;
-                    case "ordinalText":
-                        return (T)(object)NUM_FMT.ORDINAL_TEXT;
-                    case "ideographDigital":
-                        return (T)(object)NUM_FMT.IDEOGRAPN_DIGITAL;
-
+                    case "aiueo": return (T)(object)NUM_FMT.AIUEO;
+                    case "aiueoFullWidth": return (T)(object)NUM_FMT.AIUEO_FULL_WIDTH;
+                    case "arabicAbjad": return (T)(object)NUM_FMT.ARABIC_ABJAD;
+                    case "arabicAlpha": return (T)(object)NUM_FMT.ARABIC_ALPHA;
+                    case "bullet": return (T)(object)NUM_FMT.BULLET;
+                    case "cardinalText": return (T)(object)NUM_FMT.CARDINAL_TEXT;
+                    case "chicago": return (T)(object)NUM_FMT.CHICAGO;
+                    case "chineseCounting": return (T)(object)NUM_FMT.CHINESE_COUNTING;
+                    case "chineseCountingThousand": return (T)(object)NUM_FMT.CHINESE_COUNTING_THOUSAND;
+                    case "chineseLegalSimplified": return (T)(object)NUM_FMT.CHINESE_LEGAL_SIMPLIFIED;
+                    case "chosung": return (T)(object)NUM_FMT.CHOSUNG;
+                    case "decimal": return (T)(object)NUM_FMT.DECIMAL;
+                    case "decimalEnclosedCircle": return (T)(object)NUM_FMT.DECIMAL_ENCLOSED_CIRCLE;
+                    case "decimalEnclosedCircleChinese": return (T)(object)NUM_FMT.DECIMAL_ENCLOSED_CIRCLE_CHINESE;
+                    case "decimalEnclosedFullstop": return (T)(object)NUM_FMT.DECIMAL_ENCLOSED_FULLSTOP;
+                    case "decimalEnclosedParen": return (T)(object)NUM_FMT.DECIMAL_ENCLOSED_PAREN;
+                    case "decimalFullWidth": return (T)(object)NUM_FMT.DECIMAL_FULL_WIDTH;
+                    case "decimalFullWidth2": return (T)(object)NUM_FMT.DECIMAL_FULL_WIDTH2;
+                    case "decimalHalfWidth": return (T)(object)NUM_FMT.DECIMAL_HALF_WIDTH;
+                    case "decimalZero": return (T)(object)NUM_FMT.DECIMAL_ZERO;
+                    case "ganada": return (T)(object)NUM_FMT.GANADA;
+                    case "hebrew1": return (T)(object)NUM_FMT.HEBREW1;
+                    case "hebrew2": return (T)(object)NUM_FMT.HEBREW2;
+                    case "hex": return (T)(object)NUM_FMT.HEX;
+                    case "hindiConsonants": return (T)(object)NUM_FMT.HINDI_CONSONANTS;
+                    case "hindiCounting": return (T)(object)NUM_FMT.HINDI_COUNTING;
+                    case "hindiNumbers": return (T)(object)NUM_FMT.HINDI_NUMBERS;
+                    case "hindiVowels": return (T)(object)NUM_FMT.HINDI_VOWELS;
+                    case "ideographDigital": return (T)(object)NUM_FMT.IDEOGRAPH_DIGITAL;
+                    case "ideographEnclosedCircle": return (T)(object)NUM_FMT.IDEOGRAPH_ENCLOSED_CIRCLE;
+                    case "ideographLegalTraditional": return (T)(object)NUM_FMT.IDEOGRAPH_LEGAL_TRADITIONAL;
+                    case "ideographTraditional": return (T)(object)NUM_FMT.IDEOGRAPH_TRADITIONAL;
+                    case "ideographZodiac": return (T)(object)NUM_FMT.IDEOGRAPH_ZODIAC;
+                    case "ideographZodiacTraditional": return (T)(object)NUM_FMT.IDEOGRAPH_ZODIAC_TRADITIONAL;
+                    case "iroha": return (T)(object)NUM_FMT.IROHA;
+                    case "irohaFullWidth": return (T)(object)NUM_FMT.IROHA_FULL_WIDTH;
+                    case "japaneseCounting": return (T)(object)NUM_FMT.JAPANESE_COUNTING;
+                    case "japaneseDigitalTenThousand": return (T)(object)NUM_FMT.JAPANESE_DIGITAL_TEN_THOUSAND;
+                    case "japaneseLegal": return (T)(object)NUM_FMT.JAPANESE_LEGAL;
+                    case "koreanCounting": return (T)(object)NUM_FMT.KOREAN_COUNTING;
+                    case "koreanDigital": return (T)(object)NUM_FMT.KOREAN_DIGITAL;
+                    case "koreanDigital2": return (T)(object)NUM_FMT.KOREAN_DIGITAL2;
+                    case "koreanLegal": return (T)(object)NUM_FMT.KOREAN_LEGAL;
+                    case "lowerLetter": return (T)(object)NUM_FMT.LOWER_LETTER;
+                    case "lowerRoman": return (T)(object)NUM_FMT.LOWER_ROMAN;
+                    case "none": return (T)(object)NUM_FMT.NONE;
+                    case "numberInDash": return (T)(object)NUM_FMT.NUMBERIN_DASH;
+                    case "ordinal": return (T)(object)NUM_FMT.ORDINAL;
+                    case "ordinalText": return (T)(object)NUM_FMT.ORDINAL_TEXT;
+                    case "russianLower": return (T)(object)NUM_FMT.RUSSIAN_LOWER;
+                    case "russianUpper": return (T)(object)NUM_FMT.RUSSIAN_UPPER;
+                    case "taiwaneseCounting": return (T)(object)NUM_FMT.TAIWANESE_COUNTING;
+                    case "taiwaneseCountingThousand": return (T)(object)NUM_FMT.TAIWANESE_COUNTING_THOUSAND;
+                    case "taiwaneseDigital": return (T)(object)NUM_FMT.TAIWANESE_DIGITAL;
+                    case "thaiCounting": return (T)(object)NUM_FMT.THAI_COUNTING;
+                    case "thaiLetters": return (T)(object)NUM_FMT.THAI_LETTERS;
+                    case "thaiNumbers": return (T)(object)NUM_FMT.THAI_NUMBERS;
+                    case "upperLetter": return (T)(object)NUM_FMT.UPPER_LETTER;
+                    case "upperRoman": return (T)(object)NUM_FMT.UPPER_ROMAN;
+                    case "vietnameseCounting": return (T)(object)NUM_FMT.VIETNAMESE_COUNTING;
                 }
             }
             else if (currType == typeof(FLD_CHAR_TYPE))
