@@ -1359,7 +1359,6 @@ namespace TDV.Docx
         }
     }
 
-    public enum VERTICAL_ALIGN { TOP,CENTER,BOTTOM}
     public class VAlign : Node
     {
         public VAlign() : base("w:vAlign") { }

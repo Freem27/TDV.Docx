@@ -148,10 +148,12 @@ triple - a triple line
 wave - a wavy line
          */
     }
+
     public enum RELATIONSIP_TYPE
     {
         FOOTER, STYLES, ENDNOTES, NUMBERING, CUSTOM_XML, FOOTNOTES, WEB_SETTINGS, THEME, SETTINGS, FONT_TABLE, HEADER, HYPERLINK,COMMENT
     }
+
     public enum ASCII_THEME
     {
         NONE,
@@ -432,6 +434,40 @@ wave - a wavy line
         /// <summary>
         VIETNAMESE_COUNTING
     }
+
+    public enum BR_TYPE
+    {
+        NONE,
+        COLUMN,
+        PAGE,
+        TEXT_WRAPPING
+    }
+
+    public enum VERTICAL_ALIGN { NONE,TOP, CENTER, BOTTOM, BOTH }
+
+    public enum SECT_TYPE { NONE,
+        /// <summary>
+        /// Begins the section on the next paragraph. Certain page-level section properties cannot be specified, as they are inherited from the previous section. If a footnote occurs of the same page as a section of this kind, the new section begins on the following page.
+        /// </summary>
+        CONTINUOUS,
+        /// <summary>
+        /// The section begins on the next even-numbered page, leaving the next odd page blank if necessary.
+        /// </summary>
+        EVEN_PAGE,
+        /// <summary>
+        ///  The section begins on the following column on the page.
+        /// </summary>
+        NEXT_COLUMN,
+        /// <summary>
+        /// The section begins on the following page.
+        /// </summary>
+        NEXT_PAGE,
+        /// <summary>
+        /// The section begins on the next odd-numbered page, leaving the next even page blank if necessary.
+        /// </summary>
+        ODD_PAGE
+    }
+
     public static class EnumExtentions
     {
         public static string ToStringValue(this LINE_TYPE e) {
@@ -803,6 +839,62 @@ wave - a wavy line
             throw new NotImplementedException();
         }
 
+        public static string ToStringValue(this BR_TYPE e)
+        {
+            switch (e)
+            {
+                case BR_TYPE.NONE:
+                    return "";
+                case BR_TYPE.COLUMN:
+                    return "column";
+                case BR_TYPE.PAGE:
+                    return "page";
+                case BR_TYPE.TEXT_WRAPPING:
+                    return "textWrapping";
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(e), e, null);
+            }
+            throw new NotImplementedException();
+        }
+        public static string ToStringValue(this VERTICAL_ALIGN e)
+        {
+            switch (e)
+            {
+                case VERTICAL_ALIGN.BOTH:
+                    return "Both";
+                case VERTICAL_ALIGN.BOTTOM:
+                    return "Bottom";
+                case VERTICAL_ALIGN.CENTER:
+                    return "Center";
+                case VERTICAL_ALIGN.TOP:
+                    return "Top";
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(e), e, null);
+            }
+            throw new NotImplementedException();
+        }
+        public static string ToStringValue(this SECT_TYPE e)
+        {
+            switch (e)
+            {
+                case SECT_TYPE.NONE:
+                    return "";
+                case SECT_TYPE.CONTINUOUS:
+                    return "continuous";
+                case SECT_TYPE.EVEN_PAGE:
+                    return "evenPage";
+                case SECT_TYPE.NEXT_COLUMN:
+                    return "nextColumn";
+                case SECT_TYPE.NEXT_PAGE:
+                    return "nextPage";
+                case SECT_TYPE.ODD_PAGE:
+                    return "oddPage";
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(e), e, null);
+            }
+            throw new NotImplementedException();
+        }
+
         public static T ToEnum<T>(string value)
         {
             Type currType = typeof(T);
@@ -1074,7 +1166,48 @@ wave - a wavy line
                         return (T)(object)RELATIONSIP_TYPE.COMMENT;
                 }
             }
-
+            else if (currType == typeof(BR_TYPE))
+            {
+                switch (value)
+                {
+                    case "column":
+                        return (T)(object)BR_TYPE.COLUMN;
+                    case "page":
+                        return (T)(object)BR_TYPE.PAGE;
+                    case "textWrapping":
+                        return (T)(object)BR_TYPE.TEXT_WRAPPING;
+                }
+            }
+            else if (currType == typeof(VERTICAL_ALIGN))
+            {
+                switch (value)
+                {
+                    case "left":
+                        return (T)(object)HORIZONTAL_ALIGN.LEFT;
+                    case "center":
+                        return (T)(object)HORIZONTAL_ALIGN.CENTER;
+                    case "right":
+                        return (T)(object)HORIZONTAL_ALIGN.RIGHT;
+                    case "both":
+                        return (T)(object)HORIZONTAL_ALIGN.BOTH;
+                }
+            }
+            else if (currType == typeof(SECT_TYPE))
+            {
+                switch (value)
+                {
+                    case "continuous":
+                        return (T)(object)SECT_TYPE.CONTINUOUS;
+                    case "evenPage":
+                        return (T)(object)SECT_TYPE.EVEN_PAGE;
+                    case "nextColumn":
+                        return (T)(object)SECT_TYPE.NEXT_COLUMN;
+                    case "nextPage":
+                        return (T)(object)SECT_TYPE.NEXT_PAGE;
+                    case "oddPage":
+                        return (T)(object)SECT_TYPE.ODD_PAGE;
+                }
+            }
             throw new NotImplementedException();
         }
     }

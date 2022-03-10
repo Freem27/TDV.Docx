@@ -2414,6 +2414,11 @@ namespace TDV.Docx
             {
                 h.ApplyAllFixes();
             }
+
+            if (FindChild<PProp>()?.FindChild<RProp>()?.FindChild<Del>()!=null)
+            {
+                Delete();
+            }    
         }
 
         /// <summary>
@@ -2548,8 +2553,11 @@ namespace TDV.Docx
         public void CorrectDel(string author = "TDV")
         {
             PProp.RProp.SetCorrectionMode("del");
-            XmlEl.RemoveAttribute("w:rsidRPr");
-            XmlEl.SetAttribute("rsidDel", XmlEl.NamespaceURI, XmlEl.GetAttribute("w:rsidR"));
+            RemoveAttribute("w:rsidRPr");
+            if(HasAttribute("w:rsidR"))
+            {
+                SetAttribute("w:rsidDel", GetAttribute("w:rsidR"));
+            }
             while (RNodes.Count() > 0)
                 RNodes.First().CorrectDel(author);
             List<Paragraph> parList = Parent.FindChilds<Paragraph>();
@@ -3348,6 +3356,11 @@ namespace TDV.Docx
             }
         }
 
+        public Cols Cols
+        {
+            get { return FindChildOrCreate<Cols>(); }
+        }
+
         public PgNumType PgNumType
         {
             get { return FindChild<PgNumType>(); }
@@ -3629,6 +3642,18 @@ namespace TDV.Docx
             }
         }
 
+        public VERTICAL_ALIGN VAlign
+        {
+            get
+            {
+                return FindChild<VAlign>()?.Align??VERTICAL_ALIGN.TOP;
+            }
+            set
+            {
+                FindChildOrCreate<VAlign>().Align = value;
+            }
+        }
+
         public FooterReference GetFooterReference(REFERENCE_TYPE type, bool createIfNotExist = false)
         {
             foreach (FooterReference r in FindChilds<FooterReference>())
@@ -3692,6 +3717,92 @@ namespace TDV.Docx
         public PgSz PgSz
         {
             get { return FindChildOrCreate<PgSz>(); }
+        }
+
+        public SECT_TYPE Type
+        {
+            get
+            {
+                return FindChild<WType>()?.Type ?? SECT_TYPE.NONE;
+            }
+            set
+            {
+                if (value == SECT_TYPE.NONE )
+                {
+                    FindChild<WType>()?.Delete();
+                }
+                else
+                {
+                    FindChildOrCreate<WType>().Type = value;
+                }
+            }
+        }
+    }
+    public class WType : Node
+    {
+        public WType() : base("w:type")
+        {
+        }
+
+        public WType(Node parent) : base(parent, "w:type")
+        {
+        }
+
+        public WType(XmlElement xmlElement, Node parent) : base(xmlElement, parent, "w:type")
+        {
+        }
+        public SECT_TYPE Type
+        {
+            get
+            {
+                if (!HasAttribute("w:val"))
+                {
+                    return SECT_TYPE.NONE;
+                }
+                return EnumExtentions.ToEnum<SECT_TYPE>(GetAttribute("w:val"));
+            }
+            set
+            {
+                if (value == SECT_TYPE.NONE && HasAttribute("w:val"))
+                {
+                    Delete();
+                }
+                else
+                {
+                    SetAttribute("w:val", value.ToStringValue());
+                }
+            }
+        }
+    }
+
+
+    public class Cols : Node
+    {
+        public Cols() : base("w:cols")
+        {
+        }
+
+        public Cols(Node parent) : base(parent, "w:cols")
+        {
+        }
+
+        public Cols(XmlElement xmlElement, Node parent) : base(xmlElement, parent, "w:cols")
+        {
+        }
+        public Size Space
+        {
+            get
+            {
+                try
+                {
+                    return new Size(Int32.Parse(GetAttribute("w:space")));
+                }
+                catch
+                {
+                    return new Size(0);
+                }
+            }
+            set { SetAttribute("w:space", value.ValuePoints.ToString()); }
         }
     }
 
@@ -5343,6 +5454,17 @@ namespace TDV.Docx
 
         public Br(XmlElement xmlElement, Node parent) : base(xmlElement, parent, "w:br")
         {
+        }
+        public BR_TYPE Type
+        {
+            get
+            {
+                return EnumExtentions.ToEnum<BR_TYPE>(GetAttribute("w:type"));
+            }
+            set
+            {
+                SetAttribute("w:type", value.ToStringValue());
+            }
         }
     }
 }

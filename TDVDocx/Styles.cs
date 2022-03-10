@@ -62,15 +62,14 @@ namespace TDV.Docx
         {
             return StylesList.Where(x => x.Name.ToLower() == name.ToLower()).FirstOrDefault();
         }
-        public int GetMaxStyleId(string idPrefix="a")
+        public int GetMaxStyleId(string idPrefix=null)
         {
             int maxId = 0;
             foreach(Style s in StylesList)
             {
-                if(s.StyleId.StartsWith(idPrefix))
+                if ((idPrefix != null && s.StyleId.StartsWith(idPrefix)) || idPrefix==null) 
                 {
-                    int styleIdInt =0;
-                    if (Int32.TryParse(s.StyleId.Replace(idPrefix, ""), out styleIdInt))
+                    if (Int32.TryParse(idPrefix!=null?s.StyleId.Replace(idPrefix, ""):s.StyleId, out int styleIdInt))
                         if (styleIdInt > maxId)
                             maxId = styleIdInt;
                 }
