@@ -6,21 +6,14 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Xml;
 
-namespace TDV.Docx
-{
-    
-
-    public enum RELATIONSHIP_TARGET_MODE
-    {
-        NONE,EXTERNAL
+namespace TDV.Docx {
+    public enum RELATIONSHIP_TARGET_MODE {
+        NONE, EXTERNAL
     }
-    public class WordRels:BaseNode
-    {
-        public WordRels(DocxDocument docx):base(docx)
-        {
+    public class WordRels : BaseNode {
+        public WordRels(DocxDocument docx) : base(docx) {
             DocxDocument = docx;
-            try
-            {
+            try {
                 file = docx.sourceFolder.FindFile("document.xml.rels", @"word/_rels");
 
                 XmlDoc = new XmlDocument();
@@ -30,8 +23,7 @@ namespace TDV.Docx
                 FillNamespaces();
                 XmlEl = (XmlElement)XmlDoc.SelectSingleNode(@"/DEFAULT:Relationships", Nsmgr);
             }
-            catch (Exception e)
-            {
+            catch (Exception e) {
                 Console.WriteLine(e.Message);
             }
         }
@@ -42,8 +34,7 @@ namespace TDV.Docx
         /// </summary>
         /// <param name="target">путь к файлу отностилеьно document.xml.rels, например ../customXml/item1.xml</param>
         /// <returns></returns>
-        public Relationship NewRelationship(string target,RELATIONSIP_TYPE type)
-        {
+        public Relationship NewRelationship(string target, RELATIONSIP_TYPE type) {
             foreach (Relationship r in Relationships)
                 if (r.Target == target)
                     return r;
@@ -58,11 +49,9 @@ namespace TDV.Docx
         /// возвращает наибольший идентификатор связей Relationship
         /// </summary>
         /// <returns></returns>
-        public int GetMaxRelId()
-        {
+        public int GetMaxRelId() {
             int result = 0;
-            foreach(Relationship r in Relationships)
-            {
+            foreach (Relationship r in Relationships) {
                 if (!r.Id.Contains("rId"))
                     continue;
                 int curId = Int32.Parse(r.Id.Replace("rId", ""));
@@ -72,26 +61,21 @@ namespace TDV.Docx
             return result;
         }
 
-        public List<Relationship> Relationships
-        {
-            get
-            {
+        public List<Relationship> Relationships {
+            get {
                 return FindChilds<Relationship>();
             }
         }
 
-        public Relationship GetRelationshipById(string id)
-        {
-            foreach(Relationship r in Relationships)
-                if(r.Id==id)
-                {
+        public Relationship GetRelationshipById(string id) {
+            foreach (Relationship r in Relationships)
+                if (r.Id == id) {
                     return r;
                 }
             throw new KeyNotFoundException($"Не найдена связь с id={id}");
         }
 
-        internal ArchFile GetFileById(string id)
-        {
+        internal ArchFile GetFileById(string id) {
             ArchFile result = null;
             string target = GetRelationshipById(id).Target;
 
@@ -107,45 +91,34 @@ namespace TDV.Docx
                 throw new FileNotFoundException($"Не удалось найти файл с id={id}");
             return result;
         }
-
     }
 
-    public class Relationship : Node
-    {
+    public class Relationship : Node {
         public Relationship() : base("Relationship") { }
         public Relationship(XmlElement xmlElement, Node parent) : base(xmlElement, parent, "Relationship") { }
-        public string Id
-        {
-            get
-            {
+        public string Id {
+            get {
                 return XmlEl.GetAttribute("Id");
             }
-            set
-            {
+            set {
                 XmlEl.SetAttribute("Id", value);
             }
         }
 
-        public RELATIONSIP_TYPE Type
-        {
-            get
-            {
+        public RELATIONSIP_TYPE Type {
+            get {
                 return EnumExtentions.ToEnum<RELATIONSIP_TYPE>(GetAttribute("Type"));
             }
-            set
-            {
+            set {
                 XmlEl.SetAttribute("Type", value.ToStringValue());
             }
         }
 
-        public string Target
-        {
-            get
-            {
+        public string Target {
+            get {
                 return GetAttribute("Target");
             }
-            set
-            {
+            set {
                 if (string.IsNullOrEmpty(value))
                     RemoveAttribute("Target");
                 else
@@ -153,23 +126,18 @@ namespace TDV.Docx
             }
         }
 
-        public RELATIONSHIP_TARGET_MODE TargetMode
-        {
-            get
-            {
+        public RELATIONSHIP_TARGET_MODE TargetMode {
+            get {
                 if (!HasAttribute("TargetMode"))
                     return RELATIONSHIP_TARGET_MODE.NONE;
-                switch(GetAttribute("TargetMode"))
-                {
+                switch (GetAttribute("TargetMode")) {
                     case "External":
                         return RELATIONSHIP_TARGET_MODE.EXTERNAL;
                 }
                 throw new NotImplementedException();
             }
-            set
-            {
-                switch (value)
-                {
+            set {
+                switch (value) {
                     case RELATIONSHIP_TARGET_MODE.EXTERNAL:
                         SetAttribute("TargetMode", "External");
                         return;
@@ -181,5 +149,4 @@ namespace TDV.Docx
             }
         }
     }
-
 }

@@ -6,18 +6,14 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Xml;
 
-namespace TDV.Docx
-{
-    public class AbstractNumNotFoundException : Exception
-    {
+namespace TDV.Docx {
+    public class AbstractNumNotFoundException : Exception {
         public AbstractNumNotFoundException(string message) : base(message) { }
     }
-    public class Numbering:BaseNode
-    {
-        public Numbering(DocxDocument docx):base(docx)
-        {
-            try
-            {
+
+    public class Numbering : BaseNode {
+        public Numbering(DocxDocument docx) : base(docx) {
+            try {
                 file = docx.sourceFolder.FindFile("numbering.xml", @"word");
                 List<Section> sections = DocxDocument.Document.Sections;
                 XmlDoc = new XmlDocument();
@@ -26,8 +22,7 @@ namespace TDV.Docx
                 FillNamespaces();
                 XmlEl = (XmlElement)XmlDoc.SelectSingleNode("/w:numbering", Nsmgr);
             }
-            catch (FileNotFoundException)
-            {
+            catch (FileNotFoundException) {
                 ArchFolder wordFolder = docx.sourceFolder.GetFolder("word");
                 file = wordFolder.AddFile($"numbering.xml", new byte[0]);
                 XmlDoc = new XmlDocument();
@@ -37,34 +32,26 @@ namespace TDV.Docx
 ");
                 FillNamespaces();
                 XmlEl = (XmlElement)XmlDoc.SelectSingleNode(@"/w:numbering", Nsmgr);
-
             }
-            catch (Exception e)
-            {
+            catch (Exception e) {
                 Console.WriteLine(e.Message);
             }
-
         }
 
-
-        public AbstractNum GetAbstractNumByStyle(AbstractNumStyle style,bool createIfNotExist=false)
-        {
+        public AbstractNum GetAbstractNumByStyle(AbstractNumStyle style, bool createIfNotExist = false) {
             AbstractNum result = null;
-            foreach (AbstractNum an in AbstartNums)
-            {
-                if(an.MultiLevelType!=style.MultiLevelType)
+            foreach (AbstractNum an in AbstartNums) {
+                if (an.MultiLevelType != style.MultiLevelType)
                     continue;
                 Lvl firstLevel = an.FirstLvl;
                 if (firstLevel.NumFmt.Value == style.Format && firstLevel.LvlText.Value == style.LvlText && firstLevel.LvlJc.Value == style.LvlHorizontalAlign &&
-                    firstLevel.Ppr.Ind.Left == style.IndentingFirstLvl && firstLevel.Ppr.Ind.Hanging == style.Hanging)
-                {
+                    firstLevel.Ppr.Ind.Left == style.IndentingFirstLvl && firstLevel.Ppr.Ind.Hanging == style.Hanging) {
                     result = an;
                     break;
                 }
             }
 
-            if (result == null)
-            {
+            if (result == null) {
                 if (!createIfNotExist)
                     throw new AbstractNumNotFoundException("Не удалось найти AbstractNum по AbstractNumStyle");
                 result = NewAbstractNum(style);
@@ -77,12 +64,10 @@ namespace TDV.Docx
         /// </summary>
         /// <param name="numId"></param>
         /// <returns></returns>
-        public AbstractNum GetAbstartNumByNumID(int numId)
-        {
+        public AbstractNum GetAbstartNumByNumID(int numId) {
             bool NumIdFinded = false;
             foreach (Num num in Nums)
-                if (num.NumId == numId)
-                {
+                if (num.NumId == numId) {
                     NumIdFinded = true;
                     foreach (AbstractNum an in AbstartNums)
                         if (an.AbstractNumId == num.AbstartNumId.Value)
@@ -95,25 +80,18 @@ namespace TDV.Docx
             throw new AbstractNumNotFoundException($"Не удалось найти AbstractNum по numId={numId}");
         }
 
-        public List<Num> Nums
-        {
-            get
-            {
+        public List<Num> Nums {
+            get {
                 return FindChilds<Num>();
             }
         }
-        public List<AbstractNum> AbstartNums
-        {
-            get
-            {
+        public List<AbstractNum> AbstartNums {
+            get {
                 return FindChilds<AbstractNum>();
             }
         }
 
-        
-
-        public AbstractNum NewAbstractNum(AbstractNumStyle style)
-        {
+        public AbstractNum NewAbstractNum(AbstractNumStyle style) {
             //Вычислить максимальный AbstractNum, заинкрементить и назначить новому классу
             int maxAbstractNumId = 0;
             foreach (AbstractNum an in AbstartNums)
@@ -131,8 +109,7 @@ namespace TDV.Docx
             result.NewNodeFirst<Nsid>().Value = GenerateGuid();
             result.NewNodeLast<MultiLevelType>().Value = style.MultiLevelType;
             result.NewNodeLast<Tmpl>().Value = GenerateGuid();
-            for (int level=0;level<=(style.LvlCntMax??4);level++)
-            {
+            for (int level = 0; level <= (style.LvlCntMax ?? 4); level++) {
                 Lvl lvl = result.NewNodeLast<Lvl>();
                 lvl.Ilvl = level;
                 lvl.SetAttribute("w:tplc", GenerateGuid());
@@ -140,17 +117,16 @@ namespace TDV.Docx
                 lvl.NumFmt.Value = style.Format;
                 lvl.LvlText.Value = style.LvlText;
                 lvl.LvlJc.Value = style.LvlHorizontalAlign;
-                lvl.Ppr.Ind.Left = style.IndentingFirstLvl*(level+1);
+                lvl.Ppr.Ind.Left = style.IndentingFirstLvl * (level + 1);
                 lvl.Ppr.Ind.Hanging = style.Hanging;
                 lvl.Rpr.Font = style.FontName;
-                if(style.FontSize!=null)
-                lvl.Rpr.FontSize = style.FontSize;
+                if (style.FontSize != null)
+                    lvl.Rpr.FontSize = style.FontSize;
             }
             return result;
         }
 
-        public Num NewNum(int abstactNumId)
-        {
+        public Num NewNum(int abstactNumId) {
             int maxNumId = 0;
             foreach (Num an in Nums)
                 if (an.NumId > maxNumId)
@@ -163,17 +139,15 @@ namespace TDV.Docx
         }
     }
 
-    public class AbstractNumStyle
-    {
-        public AbstractNumStyle(MULTI_LEVEL_TYPE multiLevelType, NUM_FMT format, string lvlText, HORIZONTAL_ALIGN lvlHorizontalAlign, Size indentingFirstLvl, Size hanging,string fontName,double? fontSize, int? lvlCntMax = null)
-        {
+    public class AbstractNumStyle {
+        public AbstractNumStyle(MULTI_LEVEL_TYPE multiLevelType, NUM_FMT format, string lvlText, HORIZONTAL_ALIGN lvlHorizontalAlign, Size indentingFirstLvl, Size hanging, string fontName, double? fontSize, int? lvlCntMax = null) {
             this.MultiLevelType = multiLevelType;
             this.Format = format;
             this.LvlText = lvlText;
             this.LvlHorizontalAlign = lvlHorizontalAlign;
             this.IndentingFirstLvl = indentingFirstLvl;
             this.Hanging = hanging;
-            this.FontName = fontName; 
+            this.FontName = fontName;
             this.FontSize = fontSize;
             this.LvlCntMax = lvlCntMax;
         }
@@ -211,67 +185,53 @@ namespace TDV.Docx
         public double? FontSize;
     }
 
-    public class AbstractNum : Node
-    {
+    public class AbstractNum : Node {
         public AbstractNum() : base("w:abstractNum") { }
         public AbstractNum(XmlElement xmlElement, Node parent) : base(xmlElement, parent, "w:abstractNum") { }
 
-        public AbstractNumStyle GetAbstractNumStyle()
-        {
+        public AbstractNumStyle GetAbstractNumStyle() {
             return new AbstractNumStyle(MultiLevelType, FirstLvl.NumFmt.Value, FirstLvl.LvlText.Value,
-                FirstLvl.LvlJc.Value, FirstLvl.Ppr.Ind.Left, FirstLvl.Ppr.Ind.Hanging,FirstLvl.Rpr.Font,FirstLvl.Rpr.FontSize, Levels.Count());
+                FirstLvl.LvlJc.Value, FirstLvl.Ppr.Ind.Left, FirstLvl.Ppr.Ind.Hanging, FirstLvl.Rpr.Font, FirstLvl.Rpr.FontSize, Levels.Count());
         }
 
-        public MULTI_LEVEL_TYPE MultiLevelType
-        {
+        public MULTI_LEVEL_TYPE MultiLevelType {
             get { return MultiLevelNode.Value; }
             set { MultiLevelNode.Value = value; }
         }
 
-        public MultiLevelType MultiLevelNode
-        {
+        public MultiLevelType MultiLevelNode {
             get { return FindChildOrCreate<MultiLevelType>(); }
         }
 
-        public int AbstractNumId
-        {
-            get
-            {
+        public int AbstractNumId {
+            get {
                 return Int32.Parse(XmlEl.GetAttribute("abstractNumId", XmlEl.NamespaceURI));
             }
-            set
-            {
-                XmlEl.SetAttribute("abstractNumId",XmlEl.NamespaceURI, value.ToString());
+            set {
+                XmlEl.SetAttribute("abstractNumId", XmlEl.NamespaceURI, value.ToString());
             }
         }
 
-        public Lvl FirstLvl
-        {
-            get
-            {
-                if (Levels.Count == 0)
-                {
+        public Lvl FirstLvl {
+            get {
+                if (Levels.Count == 0) {
                     return NewNodeLast<Lvl>();
                 }
                 return Levels[0];
             }
         }
 
-        public List<Lvl> Levels
-        {
-            get
-            {
+        public List<Lvl> Levels {
+            get {
                 return FindChilds<Lvl>();
             }
         }
-        public Lvl GetLevel(int level)
-        {
+
+        public Lvl GetLevel(int level) {
             return Levels.Where(x => x.Ilvl == level).FirstOrDefault();
         }
-        
 
-        public Lvl NewLevel(int level)
-        {
+        public Lvl NewLevel(int level) {
             Lvl result = GetLevel(level);
             if (result != null)
                 return result;
@@ -281,84 +241,68 @@ namespace TDV.Docx
         }
     }
 
-    public class Num : Node
-    {
+    public class Num : Node {
         public Num() : base("w:num") { }
         public Num(XmlElement xmlElement, Node parent) : base(xmlElement, parent, "w:num") { }
-        public int NumId
-        {
-            get
-            {
+        public int NumId {
+            get {
                 return Int32.Parse(XmlEl.GetAttribute("numId", Nsmgr.LookupNamespace("w")));
             }
-            set
-            {
-                XmlEl.SetAttribute("numId",XmlEl.NamespaceURI, value.ToString());
+            set {
+                XmlEl.SetAttribute("numId", XmlEl.NamespaceURI, value.ToString());
             }
         }
-        public AbstractNumId AbstartNumId
-        {
+        public AbstractNumId AbstartNumId {
             get {
                 var result = FindChild<AbstractNumId>();
-                if(result==null)
+                if (result == null)
                     result = NewNodeLast<AbstractNumId>();
                 return result;
             }
         }
     }
-    public class AbstractNumId : Node
-    {
+    public class AbstractNumId : Node {
         public AbstractNumId() : base("w:abstractNumId") { }
         public AbstractNumId(XmlElement xmlElement, Node parent) : base(xmlElement, parent, "w:abstractNumId") { }
-        public int Value
-        {
-            get
-            {
+        public int Value {
+            get {
                 return Int32.Parse(XmlEl.GetAttribute("w:val"));
             }
-            set
-            {
+            set {
                 XmlEl.SetAttribute("val", XmlEl.NamespaceURI, value.ToString());
             }
         }
-        
+
 
     }
-    public class Lvl : Node
-    {
+    public class Lvl : Node {
         public Lvl() : base("w:lvl") { }
-        public Lvl(Node parent) : base(parent, "w:lvl")
-        {
+        public Lvl(Node parent) : base(parent, "w:lvl") {
             //<w:start w:val="1"/>
-			//<w:numFmt w:val="bullet"/>
-			//<w:lvlText w:val=""/>
-			//<w:lvlJc w:val="left"/>
-			//<w:pPr>
-			//	<w:ind w:left="720" w:hanging="360"/>
-			//</w:pPr>
-			//<w:rPr>
-			//	<w:rFonts w:ascii="Symbol" w:hAnsi="Symbol" w:hint="default"/>
-			//</w:rPr>
+            //<w:numFmt w:val="bullet"/>
+            //<w:lvlText w:val=""/>
+            //<w:lvlJc w:val="left"/>
+            //<w:pPr>
+            //	<w:ind w:left="720" w:hanging="360"/>
+            //</w:pPr>
+            //<w:rPr>
+            //	<w:rFonts w:ascii="Symbol" w:hAnsi="Symbol" w:hint="default"/>
+            //</w:rPr>
         }
         /// <summary>
         /// уровень
         /// </summary>
-        public int Ilvl
-        {
-            get
-            {
+        public int Ilvl {
+            get {
                 return Int32.Parse(XmlEl.GetAttribute("w:ilvl"));
             }
-            set
-            {
+            set {
                 XmlEl.SetAttribute("ilvl", XmlEl.NamespaceURI, value.ToString());
             }
         }
 
-        public Start Start
-        {
-            get
-            {
+        public Start Start {
+            get {
                 Start result = FindChild<Start>();
                 if (result == null)
                     result = NewNodeFirst<Start>();
@@ -366,50 +310,40 @@ namespace TDV.Docx
             }
         }
 
-        public NumFmt NumFmt
-        {
-            get
-            {
+        public NumFmt NumFmt {
+            get {
                 NumFmt result = FindChild<NumFmt>();
                 if (result == null)
                     result = NewNodeLast<NumFmt>();
                 return result;
             }
         }
-        public LvlText LvlText
-        {
-            get
-            {
+        public LvlText LvlText {
+            get {
                 LvlText result = FindChild<LvlText>();
                 if (result == null)
                     result = NewNodeLast<LvlText>();
                 return result;
             }
         }
-        public LvlJc LvlJc
-        {
-            get
-            {
+        public LvlJc LvlJc {
+            get {
                 LvlJc result = FindChild<LvlJc>();
                 if (result == null)
                     result = NewNodeLast<LvlJc>();
                 return result;
             }
         }
-        public PProp Ppr
-        {
-            get
-            {
+        public PProp Ppr {
+            get {
                 PProp result = FindChild<PProp>();
                 if (result == null)
                     result = NewNodeLast<PProp>();
                 return result;
             }
         }
-        public RProp Rpr
-        {
-            get
-            {
+        public RProp Rpr {
+            get {
                 RProp result = FindChild<RProp>();
                 if (result == null)
                     result = NewNodeLast<RProp>();
@@ -419,65 +353,49 @@ namespace TDV.Docx
         public Lvl(XmlElement xmlElement, Node parent) : base(xmlElement, parent, "w:lvl") { }
     }
 
-    public class Start : Node
-    {
+    public class Start : Node {
         public Start() : base("w:start") { }
-        public Start(Node parent) : base(parent, "w:start")
-        { }
+        public Start(Node parent) : base(parent, "w:start") { }
         public Start(XmlElement xmlElement, Node parent) : base(xmlElement, parent, "w:start") { }
-        public int Value
-        {
-            get
-            {
+        public int Value {
+            get {
                 return Int32.Parse(XmlEl.GetAttribute("w:val"));
             }
-            set
-            {
+            set {
                 XmlEl.SetAttribute("val", XmlEl.NamespaceURI, value.ToString());
             }
         }
     }
 
-
-    public class LvlText : Node
-    {
+    public class LvlText : Node {
         public LvlText() : base("w:lvlText") { }
-        public LvlText(Node parent) : base(parent, "w:lvlText")
-        { }
+        public LvlText(Node parent) : base(parent, "w:lvlText") { }
         public LvlText(XmlElement xmlElement, Node parent) : base(xmlElement, parent, "w:lvlText") { }
-        public string Value
-        {
-            get
-            {
+        public string Value {
+            get {
                 return XmlEl.GetAttribute("w:val");
             }
-            set
-            {
-                XmlEl.SetAttribute("val", XmlEl.NamespaceURI, value);
-            }
-        }
-    }
-    public class Nsid : Node
-    {
-        public Nsid() : base("w:nsid") { }
-        public Nsid(Node parent) : base(parent, "w:nsid")
-        { }
-        public Nsid(XmlElement xmlElement, Node parent) : base(xmlElement, parent, "w:nsid") { }
-        public string Value
-        {
-            get
-            {
-                return XmlEl.GetAttribute("w:val");
-            }
-            set
-            {
+            set {
                 XmlEl.SetAttribute("val", XmlEl.NamespaceURI, value);
             }
         }
     }
 
-    public enum MULTI_LEVEL_TYPE
-    {
+    public class Nsid : Node {
+        public Nsid() : base("w:nsid") { }
+        public Nsid(Node parent) : base(parent, "w:nsid") { }
+        public Nsid(XmlElement xmlElement, Node parent) : base(xmlElement, parent, "w:nsid") { }
+        public string Value {
+            get {
+                return XmlEl.GetAttribute("w:val");
+            }
+            set {
+                XmlEl.SetAttribute("val", XmlEl.NamespaceURI, value);
+            }
+        }
+    }
+
+    public enum MULTI_LEVEL_TYPE {
         /// <summary>
         /// определяет формат только на уровне
         /// </summary>
@@ -492,60 +410,45 @@ namespace TDV.Docx
         HYBRID_MULTY_LEVEL
     }
 
-    public class MultiLevelType : Node
-    {
+    public class MultiLevelType : Node {
         public MultiLevelType() : base("w:multiLevelType") { }
-        public MultiLevelType(Node parent) : base(parent, "w:multiLevelType")
-        { }
+        public MultiLevelType(Node parent) : base(parent, "w:multiLevelType") { }
         public MultiLevelType(XmlElement xmlElement, Node parent) : base(xmlElement, parent, "w:multiLevelType") { }
-        public MULTI_LEVEL_TYPE Value
-        {
-            get
-            {
+        public MULTI_LEVEL_TYPE Value {
+            get {
                 return EnumExtentions.ToEnum<MULTI_LEVEL_TYPE>(GetAttribute("w:val"));
             }
-            set
-            {
+            set {
                 SetAttribute("w:val", value.ToStringValue());
             }
         }
     }
 
-    public class Tmpl : Node
-    {
+    public class Tmpl : Node {
         public Tmpl() : base("w:tmpl") { }
-        public Tmpl(Node parent) : base(parent, "w:tmpl")
-        { }
+        public Tmpl(Node parent) : base(parent, "w:tmpl") { }
         public Tmpl(XmlElement xmlElement, Node parent) : base(xmlElement, parent, "w:tmpl") { }
-        public string Value
-        {
-            get
-            {
+        public string Value {
+            get {
                 return XmlEl.GetAttribute("w:val");
             }
-            set
-            {
+            set {
                 XmlEl.SetAttribute("val", XmlEl.NamespaceURI, value);
             }
         }
     }
 
-    public class LvlJc : Node
-    {
+    public class LvlJc : Node {
         public LvlJc() : base("w:lvlJc") { }
-        public LvlJc(Node parent) : base(parent, "w:lvlJc")
-        { }
+        public LvlJc(Node parent) : base(parent, "w:lvlJc") { }
         public LvlJc(XmlElement xmlElement, Node parent) : base(xmlElement, parent, "w:lvlJc") { }
 
-        public HORIZONTAL_ALIGN Value
-        {
-            get
-            {
+        public HORIZONTAL_ALIGN Value {
+            get {
                 return EnumExtentions.ToEnum<HORIZONTAL_ALIGN>(GetAttribute("w:val"));
             }
-            set
-            {
-                SetAttribute("w:val",value.ToStringValue());
+            set {
+                SetAttribute("w:val", value.ToStringValue());
             }
         }
     }

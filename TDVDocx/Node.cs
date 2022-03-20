@@ -9,10 +9,8 @@ using System.Runtime.CompilerServices;
 [assembly:InternalsVisibleTo("TDVDocx.Test")]
 
 
-namespace TDV.Docx
-{
-    public class ParagraphStyle
-    {
+namespace TDV.Docx {
+    public class ParagraphStyle {
         public ParagraphStyle(HORIZONTAL_ALIGN horizontalAlign,
             Border borderLeft,
             Border borderRight,
@@ -29,8 +27,7 @@ namespace TDV.Docx
             Size indentingRight,
             int? numId = null,
             int numLevel = 0
-            )
-        {
+            ) {
             this.horizontalAlign = horizontalAlign;
             this.borderLeft = borderLeft;
             this.borderRight = borderRight;
@@ -69,27 +66,22 @@ namespace TDV.Docx
         public Size indentingRight;
 
 
-        public ParagraphStyle Copy()
-        {
+        public ParagraphStyle Copy() {
             return new ParagraphStyle(horizontalAlign, borderLeft, borderRight, borderTop, borderBottom, borderBetween, borderBar, spacingBefore,
                 spacingAfter, spacingLine, indentingFirstLine, indentingHanging, indentingLeft, indentingRight);
         }
 
-        public ParagraphStyle SetHorizontalAlign(HORIZONTAL_ALIGN value)
-        {
+        public ParagraphStyle SetHorizontalAlign(HORIZONTAL_ALIGN value) {
             horizontalAlign = value;
             return this;
         }
     }
 
-    public class RunStyle
-    {
-        public static bool operator ==(RunStyle a, RunStyle b)
-        {
+    public class RunStyle {
+        public static bool operator ==(RunStyle a, RunStyle b) {
             if (a is null && b is null)
                 return true;
-            if (!(a is null) && !(b is null))
-            {
+            if (!(a is null) && !(b is null)) {
                 if (a.isBold == b.isBold &&
                     a.font == b.font &&
                     a.fontSize == b.fontSize &&
@@ -107,13 +99,11 @@ namespace TDV.Docx
                 return false;
         }
 
-        public RunStyle SetIsBold(bool value)
-        {
+        public RunStyle SetIsBold(bool value) {
             isBold = value;
             return this;
         }
-        public static bool operator !=(RunStyle a, RunStyle b)
-        {
+        public static bool operator !=(RunStyle a, RunStyle b) {
 
             return !(a == b);
         }
@@ -125,8 +115,7 @@ namespace TDV.Docx
             LINE_TYPE underline,
             string color,
             string highlight,
-            Border border)
-        {
+            Border border) {
             this.isBold = isBold;
             this.font = font;
             this.fontSize = fontSize;
@@ -146,8 +135,7 @@ namespace TDV.Docx
         public string color;
         public string highlight;
         public Border border;
-        public RunStyle Copy()
-        {
+        public RunStyle Copy() {
             return new RunStyle(isBold, font, fontSize, isItalic, isStrike, underline, color, highlight, border);
         }
 
@@ -155,8 +143,7 @@ namespace TDV.Docx
 
     public enum HORIZONTAL_ALIGN { LEFT, CENTER, RIGHT, BOTH }
 
-    public enum BORDER_TYPE
-    {
+    public enum BORDER_TYPE {
         LEFT, RIGHT, TOP, BOTTOM,
         /// <summary>
         /// Для параграфов. Между параграфами
@@ -173,68 +160,55 @@ namespace TDV.Docx
         INSIDE_V
     }
 
-
     /// <summary>
     /// тип связи. для заголовков\футеров
     /// </summary>
     public enum REFERENCE_TYPE { FIRST, EVEN, DEFAULT }
 
     public enum INSERT_POS { FIRST, LAST }
-    public class Node
-    {
-        protected Node(string qualifiedName = "")
-        {
+    public class Node {
+        protected Node(string qualifiedName = "") {
             this.qualifiedName = qualifiedName;
             disableNodeChanged = false;
         }
 
-        public static bool operator ==(Node a, Node b)
-        {
+        public static bool operator ==(Node a, Node b) {
             if (a is null && b is null)
                 return true;
             if (a is null || b is null)
                 return false;
             return a.XmlEl == b.XmlEl;
         }
-        public static bool operator !=(Node a, Node b)
-        {
+        public static bool operator !=(Node a, Node b) {
             return !(a == b);
         }
         protected bool disableNodeChanged;
-        public Section Section
-        {
-            get
-            {
+        public Section Section {
+            get {
                 foreach (Section s in GetDocxDocument().Document.Sections)
                     if (s.ChildNodes.Where(x => x.XmlEl == XmlEl).Any())
                         return s;
                 return null;
             }
         }
-        public Node NextNode
-        {
-            get
-            {
+        public Node NextNode {
+            get {
                 if (Parent is null)
                     return null;
                 List<Node> childNodes = Parent.ChildNodes;
                 Node currNode = childNodes.Where(x => x.XmlEl == XmlEl).First();
                 int currNodeIndex = childNodes.IndexOf(currNode);
-                if (childNodes.Count() > currNodeIndex + 1)
-                {
+                if (childNodes.Count() > currNodeIndex + 1) {
                     return childNodes[currNodeIndex + 1];
                 }
-                else
-                {
+                else {
                     return null;
                 }
             }
         }
 
-        public Node NextNodeRecurcieve
-        {
-            get
-            {
+        public Node NextNodeRecurcieve {
+            get {
                 if (ChildNodes.Count > 0)
                     return ChildNodes.First();
                 else if (NextNode != null)
@@ -246,46 +220,37 @@ namespace TDV.Docx
             }
         }
 
-        public Node PrevNode
-        {
-            get
-            {
+        public Node PrevNode {
+            get {
                 if (Parent is null)
                     return null;
                 List<Node> childNodes = Parent.ChildNodes;
                 Node currNode = childNodes.Where(x => x.XmlEl == XmlEl).First();
                 int currNodeIndex = childNodes.IndexOf(currNode);
-                if (currNodeIndex - 1 >= 0)
-                {
+                if (currNodeIndex - 1 >= 0) {
                     return childNodes[currNodeIndex - 1];
                 }
-                else
-                {
+                else {
                     return null;
                 }
             }
         }
 
-        public virtual void ApplyAllFixes()
-        {
-            foreach (Node n in ChildNodes)
-            {
+        public virtual void ApplyAllFixes() {
+            foreach (Node n in ChildNodes) {
                 n.ApplyAllFixes();
             }
         }
 
-        public string GenerateGuid()
-        {
+        public string GenerateGuid() {
             return Guid.NewGuid().ToString().Substring(0, 8).ToUpper();
         }
 
-        public int GenerateId(int len = 9)
-        {
+        public int GenerateId(int len = 9) {
             return new Random().Next((int)Math.Pow(10.0, (double)(len - 1)), (int)Math.Pow(10.0, (double)len) - 1);
         }
 
-        public XmlElement CopyXmlElement()
-        {
+        public XmlElement CopyXmlElement() {
             XmlElement result = XmlDoc.CreateElement(XmlEl.Prefix, XmlEl.LocalName, XmlEl.NamespaceURI);
             result.InnerXml = XmlEl.InnerXml;
             foreach (XmlAttribute att in XmlEl.Attributes)
@@ -293,8 +258,7 @@ namespace TDV.Docx
             return result;
         }
 
-        public Node(Node parent, string qualifiedName = "")
-        {
+        public Node(Node parent, string qualifiedName = "") {
             this.Parent = parent;
             this.qualifiedName = qualifiedName;
             this.Nsmgr = parent.Nsmgr;
@@ -305,8 +269,7 @@ namespace TDV.Docx
             else
                 parent.XmlEl.AppendChild(XmlEl);
         }
-        public Node(XmlElement xmlElement, Node parent, string qualifiedName) : this(qualifiedName)
-        {
+        public Node(XmlElement xmlElement, Node parent, string qualifiedName) : this(qualifiedName) {
             this.Parent = parent;
             XmlDoc = xmlElement.OwnerDocument;
             Nsmgr = parent.Nsmgr;
@@ -318,12 +281,10 @@ namespace TDV.Docx
 
         internal string qualifiedName;
 
-        public virtual void NodeChanded()
-        {
+        public virtual void NodeChanded() {
         }
 
-        public T GetParentRecurcieve<T>() where T : Node
-        {
+        public T GetParentRecurcieve<T>() where T : Node {
             if (Parent == null)
                 return null;
             if (Parent is T)
@@ -332,53 +293,44 @@ namespace TDV.Docx
                 return Parent.GetParentRecurcieve<T>();
         }
 
-        public T FindChild<T>() where T : Node
-        {
+        public T FindChild<T>() where T : Node {
             return (T)ChildNodes.Where(x => x is T).FirstOrDefault();
         }
 
-        internal string GetAttribute(string name)
-        {
+        internal string GetAttribute(string name) {
             string prefix = null;
             string localName = name;
-            if (name.Contains(":"))
-            {
+            if (name.Contains(":")) {
                 prefix = name.Split(':')[0];
                 localName = name.Split(':')[1];
             }
-            foreach (XmlAttribute a in XmlEl.Attributes)
-            {
+            foreach (XmlAttribute a in XmlEl.Attributes) {
                 if (a.Name == name || (a.LocalName == localName && a.Prefix == prefix))
                     return a.Value;
             }
             throw new KeyNotFoundException();
         }
-        internal void SetAttribute(string name, string value)
-        {
+        internal void SetAttribute(string name, string value) {
             string prefix = null;
             string localName = name;
-            if (name.Contains(":"))
-            {
+            if (name.Contains(":")) {
                 prefix = name.Split(':')[0];
                 localName = name.Split(':')[1];
             }
 
             if (HasAttribute(name))
                 XmlEl.SetAttribute(localName, Nsmgr.LookupNamespace(prefix), value);
-            else
-            {
+            else {
                 XmlAttribute a = XmlDoc.CreateAttribute(prefix, localName, Nsmgr.LookupNamespace(prefix));
                 a.Value = value;
                 XmlEl.Attributes.Append(a);
             }
         }
 
-        internal bool HasAttribute(string name)
-        {
+        internal bool HasAttribute(string name) {
             string prefix = null;
             string localName = name;
-            if (name.Contains(":"))
-            {
+            if (name.Contains(":")) {
                 prefix = name.Split(':')[0];
                 localName = name.Split(':')[1];
             }
@@ -388,18 +340,15 @@ namespace TDV.Docx
                 return XmlEl.HasAttribute(localName, Nsmgr.LookupNamespace(prefix));
         }
 
-        internal void RemoveAttribute(string name)
-        {
+        internal void RemoveAttribute(string name) {
             string prefix = null;
             string localName = name;
-            if (name.Contains(":"))
-            {
+            if (name.Contains(":")) {
                 prefix = name.Split(':')[0];
                 localName = name.Split(':')[1];
             }
 
-            if (XmlEl.HasAttribute(localName) || XmlEl.HasAttribute(localName, Nsmgr.LookupNamespace(prefix)))
-            {
+            if (XmlEl.HasAttribute(localName) || XmlEl.HasAttribute(localName, Nsmgr.LookupNamespace(prefix))) {
                 if (prefix != null)
                     XmlEl.RemoveAttribute(localName, Nsmgr.LookupNamespace(prefix));
                 else
@@ -407,12 +356,10 @@ namespace TDV.Docx
             }
         }
 
-        public T FindChildOrCreate<T>(INSERT_POS pos = INSERT_POS.LAST) where T : Node
-        {
+        public T FindChildOrCreate<T>(INSERT_POS pos = INSERT_POS.LAST) where T : Node {
             T result = (T)ChildNodes.Where(x => x is T).FirstOrDefault();
             if (result == null)
-                switch (pos)
-                {
+                switch (pos) {
                     case INSERT_POS.LAST:
                         result = NewNodeLast<T>();
                         break;
@@ -425,36 +372,29 @@ namespace TDV.Docx
             return result;
         }
 
-        public List<T> FindChilds<T>() where T : Node
-        {
+        public List<T> FindChilds<T>() where T : Node {
             return ChildNodes.Where(x => x is T).Select(x => (T)x).ToList();
         }
 
-        public List<T> FindChildsRecurcieve<T>() where T : Node
-        {
+        public List<T> FindChildsRecurcieve<T>() where T : Node {
             List<T> result = new List<T>();
             result = ChildNodes.Where(x => x is T).Select(x => (T)x).ToList();
-            foreach (Node child in ChildNodes)
-            {
+            foreach (Node child in ChildNodes) {
                 result.AddRange(child.FindChildsRecurcieve<T>());
             }
             return result;
         }
 
-        public virtual List<Node> ChildNodes
-        {
-            get
-            {
+        public virtual List<Node> ChildNodes {
+            get {
                 List<Node> result = new List<Node>();
                 if (XmlEl == null)
                     return result;
-                foreach (var el in XmlEl.ChildNodes)
-                {
+                foreach (var el in XmlEl.ChildNodes) {
                     if (!(el is XmlElement))
                         continue;
                     XmlElement item = (XmlElement)el;
-                    switch (item.Name)
-                    {
+                    switch (item.Name) {
                         case "w:body":
                             result.Add(new Body(item, this));
                             break;
@@ -869,13 +809,24 @@ namespace TDV.Docx
                         case "w:type":
                             result.Add(new WType(item, this));
                             break;
+                        case "m:oMathPara":
+                            result.Add(new OMathPara(item, this));
+                            break;
+                        case "m:oMath":
+                            result.Add(new OMath(item, this));
+                            break;
+                        case "m:oMathParaPr":
+                            result.Add(new OMathParaPr(item, this));
+                            break;
+                        case "m:jc":
+                            result.Add(new MJc(item, this));
+                            break;
                         default:
                             result.Add(new Node(item, this, item.Name));
                             break;
                     }
 
-                    if (result.Count() > 1)
-                    {
+                    if (result.Count() > 1) {
                         //result[result.Count()-2].NextNode = result.Last();
                         //result[result.Count() - 1].PrevNode = result[result.Count() - 2];
                     }
@@ -888,8 +839,7 @@ namespace TDV.Docx
 
         internal List<Node> baseStyleNodes = new List<Node>();
         private bool ChangeNodeCreated = false;
-        public virtual void CreateChangeNode<T>(string author) where T : ChangeNode
-        {
+        public virtual void CreateChangeNode<T>(string author) where T : ChangeNode {
             if (ChangeNodeCreated)
                 return;
             if (Parent.FindChild<T>() != null || FindChild<T>() != null)
@@ -905,43 +855,36 @@ namespace TDV.Docx
 
         public XmlElement XmlEl;
 
-        public virtual void Delete()
-        {
-            if (Parent != null && Parent.XmlEl.SelectSingleNode(XmlEl.Name, Nsmgr) != null)
-            {
+        public virtual void Delete() {
+            if (Parent != null && Parent.XmlEl.SelectSingleNode(XmlEl.Name, Nsmgr) != null) {
                 Parent.XmlEl.RemoveChild(XmlEl);
             }
         }
 
-        public void MoveTo(Node nodeTo)
-        {
+        public void MoveTo(Node nodeTo) {
             Delete();
             if (nodeTo.Parent != this)
                 nodeTo.XmlEl.AppendChild(XmlEl);
         }
 
-        public void MoveAfter(Node after)
-        {
+        public void MoveAfter(Node after) {
             Node nodeTo = after.Parent;
             Delete();
             nodeTo.XmlEl.InsertAfter(XmlEl, after.XmlEl);
         }
-        public void MoveBefore(Node before)
-        {
+        public void MoveBefore(Node before) {
             Node nodeTo = before.Parent;
             Delete();
             nodeTo.XmlEl.InsertBefore(XmlEl, before.XmlEl);
         }
 
-        public void Clear()
-        {
+        public void Clear() {
             XmlEl.RemoveAll();
             ChildNodes.Clear();
         }
 
         //добавляет новую НОДУ в конец списка
-        private T NewNode<T>() where T : Node
-        {
+        private T NewNode<T>() where T : Node {
             T result = Activator.CreateInstance<T>();
             result.XmlDoc = XmlEl.OwnerDocument;
             result.Parent = this;
@@ -950,41 +893,35 @@ namespace TDV.Docx
             return result;
         }
 
-        public T NewNodeAfter<T>(XmlElement after) where T : Node
-        {
+        public T NewNodeAfter<T>(XmlElement after) where T : Node {
             T result = NewNode<T>();
             XmlEl.InsertAfter(result.XmlEl, after);
             return result;
         }
-        public T NewNodeAfter<T>(Node after) where T : Node
-        {
+        public T NewNodeAfter<T>(Node after) where T : Node {
             T result = NewNode<T>();
             XmlEl.InsertAfter(result.XmlEl, after.XmlEl);
             return result;
         }
 
-        public T NewNodeBefore<T>(XmlElement before) where T : Node
-        {
+        public T NewNodeBefore<T>(XmlElement before) where T : Node {
             T result = NewNode<T>();
             XmlEl.InsertBefore(result.XmlEl, before);
             return result;
         }
-        public T NewNodeBefore<T>(Node before) where T : Node
-        {
+        public T NewNodeBefore<T>(Node before) where T : Node {
             T result = NewNode<T>();
             XmlEl.InsertBefore(result.XmlEl, before.XmlEl);
             return result;
         }
 
-        public T NewNodeFirst<T>() where T : Node
-        {
+        public T NewNodeFirst<T>() where T : Node {
             T result = NewNode<T>();
             XmlEl.InsertBefore(result.XmlEl, XmlEl.FirstChild);
             return result;
         }
 
-        public T NewNodeLast<T>() where T : Node
-        {
+        public T NewNodeLast<T>() where T : Node {
             T result = NewNode<T>();
             XmlEl.AppendChild(result.XmlEl);
             return result;
@@ -993,27 +930,22 @@ namespace TDV.Docx
         /// <summary>
         /// Создает новый XmlElement. Необходимо переопределеять в классах наследниках
         /// </summary>
-        public virtual void InitXmlElement()
-        {
+        public virtual void InitXmlElement() {
             XmlEl = XmlDoc.CreateElement(qualifiedName, XmlDoc.DocumentElement.NamespaceURI);
         }
 
-        public virtual string Text
-        {
-            get
-            {
+        public virtual string Text {
+            get {
                 if (XmlEl != null)
                     return XmlEl.InnerText;
                 return null;
             }
-            set
-            {
+            set {
                 XmlEl.InnerText = value;
             }
         }
 
-        public DocxDocument GetDocxDocument()
-        {
+        public DocxDocument GetDocxDocument() {
             DocxDocument result = null;
 
             if (this is BaseNode)
@@ -1023,8 +955,7 @@ namespace TDV.Docx
             return result;
         }
 
-        public virtual int GetWordsCnt()
-        {
+        public virtual int GetWordsCnt() {
             return Text?.Trim().Split(' ').Count() ?? 0;
         }
 
@@ -1035,29 +966,23 @@ namespace TDV.Docx
         /// <param name="nodesLimit">Максимально количество нод</param>
         /// <param name="calcEmptyParagrapsh"></param>
         /// <returns></returns>
-        public List<Node> GetNextNodesList(int? wordsLimit =null, int? nodesLimit=null, bool calcEmptyNodes=true)
-        {
+        public List<Node> GetNextNodesList(int? wordsLimit = null, int? nodesLimit = null, bool calcEmptyNodes = true) {
             List<Node> result = new List<Node>();
             Node currNode = NextNode;
             int wordsCnt = 0;
-            while (currNode != null)
-            {
-                if (nodesLimit.HasValue && result.Count == nodesLimit)
-                {
+            while (currNode != null) {
+                if (nodesLimit.HasValue && result.Count == nodesLimit) {
                     break;
                 }
 
-                if (wordsLimit.HasValue)
-                {
+                if (wordsLimit.HasValue) {
                     wordsCnt += currNode.GetWordsCnt();
-                    if (wordsLimit <= wordsCnt)
-                    {
+                    if (wordsLimit <= wordsCnt) {
                         break;
                     }
                 }
 
-                if (calcEmptyNodes || !string.IsNullOrEmpty(currNode.Text))
-                {
+                if (calcEmptyNodes || !string.IsNullOrEmpty(currNode.Text)) {
                     result.Add(currNode);
                 }
                 currNode = currNode.NextNode;
@@ -1065,29 +990,32 @@ namespace TDV.Docx
             return result;
         }
 
-        public List<Node> GetPrevNodesList(int? wordsLimit = null, int? nodesLimit = null, bool calcEmptyNodes = true)
-        {
+        public List<Node> GetPrevNodesList(int? wordsLimit = null, int? nodesLimit = null, int? symbolsLimit = null, bool calcEmptyNodes = true) {
             List<Node> result = new List<Node>();
             Node currNode = PrevNode;
             int wordsCnt = 0;
-            while (currNode != null)
-            {
-                if (nodesLimit.HasValue && result.Count == nodesLimit)
-                {
+            int symbolsCnt = 0;
+            while (currNode != null) {
+                if (nodesLimit.HasValue && result.Count == nodesLimit) {
                     break;
                 }
 
-                if (wordsLimit.HasValue)
-                {
-                    wordsCnt += currNode.GetWordsCnt();
-                    if (wordsLimit <= wordsCnt)
-                    {
+                if (wordsLimit.HasValue) {
+
+                    if (wordsLimit < wordsCnt + currNode.GetWordsCnt()) {
                         break;
                     }
+                    wordsCnt += currNode.GetWordsCnt();
                 }
 
-                if (calcEmptyNodes || !string.IsNullOrEmpty(currNode.Text))
-                {
+                if (symbolsLimit.HasValue) {
+                    if (symbolsLimit < symbolsCnt + currNode.Text.Length) {
+                        break;
+                    }
+                    symbolsLimit += currNode.Text.Length;
+                }
+
+                if (calcEmptyNodes || !string.IsNullOrEmpty(currNode.Text)) {
                     result.Add(currNode);
                 }
                 currNode = currNode.PrevNode;
@@ -1096,10 +1024,13 @@ namespace TDV.Docx
             result.Reverse();
             return result;
         }
+
+        public T Cast<T>() where T: Node {
+            return (T)this;
+        }
     }
 
-    public interface ICorrectable
-    {
+    public interface ICorrectable {
         /// <summary>
         /// устанавливает режим правки
         /// mode = "del", "ins"

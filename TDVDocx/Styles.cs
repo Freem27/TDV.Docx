@@ -6,16 +6,11 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Xml;
 
-namespace TDV.Docx
-{
-
-    public enum STYLE_TYPE { TABLE,CHARACTER, PARAGRAPH,NUMBERING }
-    public class Styles : BaseNode
-    {
-        public Styles(DocxDocument docx) : base(docx)
-        {
-            try
-            {
+namespace TDV.Docx {
+    public enum STYLE_TYPE { TABLE, CHARACTER, PARAGRAPH, NUMBERING }
+    public class Styles : BaseNode {
+        public Styles(DocxDocument docx) : base(docx) {
+            try {
                 file = docx.sourceFolder.FindFile("styles.xml", @"word");
 
                 XmlDoc = new XmlDocument();
@@ -23,53 +18,43 @@ namespace TDV.Docx
                 FillNamespaces();
                 XmlEl = (XmlElement)XmlDoc.SelectSingleNode(@"w:styles", Nsmgr);
             }
-            catch (Exception e)
-            {
+            catch (Exception e) {
                 Console.WriteLine(e.Message);
             }
         }
 
-        public List<Style> StylesList
-        {
+        public List<Style> StylesList {
             get { return FindChilds<Style>(); }
         }
 
-        public DocDefaults DocDefaults
-        {
-            get
-            {
+        public DocDefaults DocDefaults {
+            get {
                 return FindChild<DocDefaults>();
             }
         }
 
-        public Style GetDefaultParagraphFontStyle()
-        {
-                Style result = null;
-                result = StylesList.Where(x => x.Name == "Default Paragraph Font").FirstOrDefault();
-                if (result == null)
-                {
-                    result = NewNodeLast<Style>();
-                    result.StyleId = $"a{GetMaxStyleId() + 1}";
-                    result.Name = "Default Paragraph Font";
-                    result.Default = "1";
-                    result.IsSemiHidden = true;
-                    result.IsUnhideWhenUsed = true;
-                }
-                return result;
+        public Style GetDefaultParagraphFontStyle() {
+            Style result = null;
+            result = StylesList.Where(x => x.Name == "Default Paragraph Font").FirstOrDefault();
+            if (result == null) {
+                result = NewNodeLast<Style>();
+                result.StyleId = $"a{GetMaxStyleId() + 1}";
+                result.Name = "Default Paragraph Font";
+                result.Default = "1";
+                result.IsSemiHidden = true;
+                result.IsUnhideWhenUsed = true;
+            }
+            return result;
         }
 
-        public Style GetStyleByName(string name)
-        {
+        public Style GetStyleByName(string name) {
             return StylesList.Where(x => x.Name.ToLower() == name.ToLower()).FirstOrDefault();
         }
-        public int GetMaxStyleId(string idPrefix=null)
-        {
+        public int GetMaxStyleId(string idPrefix = null) {
             int maxId = 0;
-            foreach(Style s in StylesList)
-            {
-                if ((idPrefix != null && s.StyleId.StartsWith(idPrefix)) || idPrefix==null) 
-                {
-                    if (Int32.TryParse(idPrefix!=null?s.StyleId.Replace(idPrefix, ""):s.StyleId, out int styleIdInt))
+            foreach (Style s in StylesList) {
+                if ((idPrefix != null && s.StyleId.StartsWith(idPrefix)) || idPrefix == null) {
+                    if (Int32.TryParse(idPrefix != null ? s.StyleId.Replace(idPrefix, "") : s.StyleId, out int styleIdInt))
                         if (styleIdInt > maxId)
                             maxId = styleIdInt;
                 }
@@ -77,26 +62,21 @@ namespace TDV.Docx
             return maxId;
         }
 
-        public Style GetStyleById(string id)
-        {
+        public Style GetStyleById(string id) {
             return StylesList.Where(x => x.StyleId == id).FirstOrDefault();
         }
     }
 
-    public class Style : Node
-    {
+    public class Style : Node {
         public Style() : base("w:style") { }
         public Style(Node parent) : base(parent, "w:style") { }
         public Style(XmlElement xmlElement, Node parent) : base(xmlElement, parent, "w:style") { }
 
-        public bool IsSemiHidden
-        {
-            get
-            {
+        public bool IsSemiHidden {
+            get {
                 return FindChild<SemiHidden>() != null;
             }
-            set
-            {
+            set {
                 if (value)
                     FindChildOrCreate<SemiHidden>();
                 else
@@ -104,14 +84,11 @@ namespace TDV.Docx
             }
         }
 
-        public bool IsUnhideWhenUsed
-        {
-            get
-            {
+        public bool IsUnhideWhenUsed {
+            get {
                 return FindChild<UnhideWhenUsed>() != null;
             }
-            set
-            {
+            set {
                 if (value)
                     FindChildOrCreate<UnhideWhenUsed>();
                 else
@@ -119,19 +96,15 @@ namespace TDV.Docx
             }
         }
 
-        public T GetStyleProp<T>() where T : Node
-        {
+        public T GetStyleProp<T>() where T : Node {
             T result = null;
             result = (T)ChildNodes.Where(x => x is T).FirstOrDefault();
-            if (result == null)
-            {
+            if (result == null) {
                 if (basedOn != null)
                     return basedOn.GetStyleProp<T>();
             }
-            else
-            {
-                if (basedOn != null)
-                {
+            else {
+                if (basedOn != null) {
                     T parentStyleProp = basedOn.GetStyleProp<T>();
                     if (parentStyleProp != null)
                         result.baseStyleNodes = parentStyleProp.ChildNodes;
@@ -143,57 +116,44 @@ namespace TDV.Docx
         /// <summary>
         /// базовый стиль
         /// </summary>
-        public Style basedOn
-        {
-            get
-            {
+        public Style basedOn {
+            get {
                 BasedOn basedOn = FindChild<BasedOn>();
                 if (basedOn == null)
                     return null;
                 return ((Styles)Parent).GetStyleById(basedOn.Value);
             }
-            set
-            {
-                FindChildOrCreate<BasedOn>().Value=value.StyleId;
+            set {
+                FindChildOrCreate<BasedOn>().Value = value.StyleId;
             }
         }
 
-        public string StyleId
-        {
-            get
-            {
-                try
-                {
+        public string StyleId {
+            get {
+                try {
                     return GetAttribute("w:styleId");
                 }
-                catch (KeyNotFoundException)
-                {
+                catch (KeyNotFoundException) {
                     return null;
                 }
             }
-            set
-            {
+            set {
                 if (string.IsNullOrEmpty(value))
                     RemoveAttribute("w:styleId");
                 else
                     SetAttribute("w:styleId", value);
             }
         }
-        public string Default
-        {
-            get
-            {
-                try
-                {
+        public string Default {
+            get {
+                try {
                     return GetAttribute("w:default");
                 }
-                catch (KeyNotFoundException)
-                {
+                catch (KeyNotFoundException) {
                     return null;
                 }
             }
-            set
-            {
+            set {
                 if (string.IsNullOrEmpty(value))
                     RemoveAttribute("w:default");
                 else
@@ -201,12 +161,9 @@ namespace TDV.Docx
             }
         }
 
-        public STYLE_TYPE Type
-        {
-            get
-            {
-                switch (GetAttribute("w:type"))
-                {
+        public STYLE_TYPE Type {
+            get {
+                switch (GetAttribute("w:type")) {
                     case "character":
                         return STYLE_TYPE.CHARACTER;
                     case "paragraph":
@@ -218,10 +175,8 @@ namespace TDV.Docx
                 }
                 throw new NotImplementedException();
             }
-            set
-            {
-                switch (value)
-                {
+            set {
+                switch (value) {
                     case STYLE_TYPE.CHARACTER:
                         SetAttribute("w:type", "character");
                         return;
@@ -239,110 +194,89 @@ namespace TDV.Docx
             }
         }
 
-        public string Name
-        {
-            get
-            {
-                return FindChild<Name>()?.Value??null;
+        public string Name {
+            get {
+                return FindChild<Name>()?.Value ?? null;
             }
-            set
-            {
+            set {
                 FindChildOrCreate<Name>().Value = value;
             }
         }
 
 
-        public int UiPriority
-        {
-            get
-            {
+        public int UiPriority {
+            get {
                 return FindChild<UiPriority>().Value;
             }
-            set
-            {
+            set {
                 FindChildOrCreate<UiPriority>().Value = value;
             }
         }
     }
 
-
-    public class DocDefaults : Node
-    {
+    public class DocDefaults : Node {
         public DocDefaults() : base("w:docDefaults") { }
         public DocDefaults(Node parent) : base(parent, "w:docDefaults") { }
         public DocDefaults(XmlElement xmlElement, Node parent) : base(xmlElement, parent, "w:docDefaults") { }
 
-        public RPrDefault RPrDefault
-        {
+        public RPrDefault RPrDefault {
             get { return FindChild<RPrDefault>(); }
         }
 
-        public PPrDefault PPrDefault
-        {
+        public PPrDefault PPrDefault {
             get { return FindChild<PPrDefault>(); }
         }
     }
 
-    public class PPrDefault : Node
-    {
+    public class PPrDefault : Node {
         public PPrDefault() : base("w:pPrDefault") { }
         public PPrDefault(Node parent) : base(parent, "w:pPrDefault") { }
         public PPrDefault(XmlElement xmlElement, Node parent) : base(xmlElement, parent, "w:pPrDefault") { }
 
-        public PProp PProp
-        {
+        public PProp PProp {
             get { return FindChild<PProp>(); }
         }
     }
 
-    public class RPrDefault : Node
-    {
+    public class RPrDefault : Node {
         public RPrDefault() : base("w:rPrDefault") { }
         public RPrDefault(Node parent) : base(parent, "w:rPrDefault") { }
         public RPrDefault(XmlElement xmlElement, Node parent) : base(xmlElement, parent, "w:rPrDefault") { }
 
-        public RProp RProp
-        {
+        public RProp RProp {
             get { return FindChild<RProp>(); }
         }
 
     }
 
-    public class SemiHidden : Node
-    {
+    public class SemiHidden : Node {
         public SemiHidden() : base("w:semiHidden") { }
         public SemiHidden(Node parent) : base(parent, "w:semiHidden") { }
         public SemiHidden(XmlElement xmlElement, Node parent) : base(xmlElement, parent, "w:semiHidden") { }
 
     }
 
-    public class UnhideWhenUsed : Node
-    {
+    public class UnhideWhenUsed : Node {
         public UnhideWhenUsed() : base("w:unhideWhenUsed") { }
         public UnhideWhenUsed(Node parent) : base(parent, "w:unhideWhenUsed") { }
         public UnhideWhenUsed(XmlElement xmlElement, Node parent) : base(xmlElement, parent, "w:unhideWhenUsed") { }
     }
 
-    public class Name : Node
-    {
+    public class Name : Node {
         public Name() : base("w:name") { }
         public Name(Node parent) : base(parent, "w:name") { }
         public Name(XmlElement xmlElement, Node parent) : base(xmlElement, parent, "w:name") { }
 
-        public string Value
-        {
-            get
-            {
-                try
-                {
+        public string Value {
+            get {
+                try {
                     return GetAttribute("w:val");
-                }catch (KeyNotFoundException)
-                {
+                }
+                catch (KeyNotFoundException) {
                     return null;
                 }
             }
-            set
-            {
+            set {
                 if (string.IsNullOrEmpty(value))
                     RemoveAttribute("w:val");
                 else
@@ -350,27 +284,21 @@ namespace TDV.Docx
             }
         }
     }
-    public class BasedOn : Node
-    {
+    public class BasedOn : Node {
         public BasedOn() : base("w:basedOn") { }
         public BasedOn(Node parent) : base(parent, "w:basedOn") { }
         public BasedOn(XmlElement xmlElement, Node parent) : base(xmlElement, parent, "w:basedOn") { }
 
-        public string Value
-        {
-            get
-            {
-                try
-                {
+        public string Value {
+            get {
+                try {
                     return GetAttribute("w:val");
                 }
-                catch (KeyNotFoundException)
-                {
+                catch (KeyNotFoundException) {
                     return null;
                 }
             }
-            set
-            {
+            set {
                 if (string.IsNullOrEmpty(value))
                     RemoveAttribute("w:val");
                 else
@@ -379,46 +307,36 @@ namespace TDV.Docx
         }
     }
 
-    public class UiPriority : Node
-    {
+    public class UiPriority : Node {
         public UiPriority() : base("w:uiPriority") { }
         public UiPriority(Node parent) : base(parent, "w:uiPriority") { }
         public UiPriority(XmlElement xmlElement, Node parent) : base(xmlElement, parent, "w:uiPriority") { }
 
-        public int Value
-        {
-            get
-            {
-                return Int32.Parse( GetAttribute("w:val"));
+        public int Value {
+            get {
+                return Int32.Parse(GetAttribute("w:val"));
             }
-            set
-            {
+            set {
                 SetAttribute("w:val", value.ToString());
             }
         }
     }
 
-    public class RStyleNode : Node
-    {
+    public class RStyleNode : Node {
         public RStyleNode() : base("w:rStyle") { }
         public RStyleNode(Node parent) : base(parent, "w:rStyle") { }
         public RStyleNode(XmlElement xmlElement, Node parent) : base(xmlElement, parent, "w:rStyle") { }
 
-        public string Value
-        {
-            get
-            {
-                try
-                {
+        public string Value {
+            get {
+                try {
                     return GetAttribute("w:val");
                 }
-                catch (KeyNotFoundException)
-                {
+                catch (KeyNotFoundException) {
                     return null;
                 }
             }
-            set
-            {
+            set {
                 if (string.IsNullOrEmpty(value))
                     RemoveAttribute("w:val");
                 else
@@ -426,16 +344,14 @@ namespace TDV.Docx
             }
         }
 
-        public Style Style{
-            get
-            {
+        public Style Style {
+            get {
                 if (string.IsNullOrEmpty(Value))
                     return null;
                 DocxDocument docx = GetDocxDocument();
                 return docx.Styles.GetStyleById(Value);
             }
-            set
-            {
+            set {
                 Value = value.StyleId;
             }
         }
