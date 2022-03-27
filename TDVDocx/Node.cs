@@ -863,19 +863,23 @@ namespace TDV.Docx {
 
         public void MoveTo(Node nodeTo) {
             Delete();
-            if (nodeTo.Parent != this)
+            if (nodeTo.Parent != this) { 
                 nodeTo.XmlEl.AppendChild(XmlEl);
+                Parent = nodeTo;
+            }
         }
 
         public void MoveAfter(Node after) {
             Node nodeTo = after.Parent;
             Delete();
             nodeTo.XmlEl.InsertAfter(XmlEl, after.XmlEl);
+            Parent = after.Parent;
         }
         public void MoveBefore(Node before) {
             Node nodeTo = before.Parent;
             Delete();
             nodeTo.XmlEl.InsertBefore(XmlEl, before.XmlEl);
+            Parent = before.Parent;
         }
 
         public void Clear() {

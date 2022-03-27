@@ -298,7 +298,6 @@ namespace TDV.Docx {
 
             cNode.SetAttribute("author", XmlEl.NamespaceURI, author);
             cNode.SetAttribute("date", XmlEl.NamespaceURI, DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ssZ"));
-
         }
 
 
@@ -1264,6 +1263,36 @@ namespace TDV.Docx {
             Border = style.border;
         }
 
+        public void SetInsertCorrectionMode(string author = "TDV") {
+            if(Parent is Del) {
+                MoveAfter(Parent);
+                Parent.Delete();
+            }
+
+            if(!(Parent is Ins)) {
+                Ins ins = Parent.NewNodeBefore<Ins>(this);
+                MoveTo(ins);
+                Parent = ins;
+                ins.Author = author;
+                ins.Date = DateTime.Now;
+            }
+        }
+
+        public void SetDeleteCorrectionMode(string author = "TDV") {
+            if (Parent is Ins) {
+                MoveAfter(Parent);
+                Parent.Delete();
+            }
+
+            if (!(Parent is Del)) {
+                Del del = Parent.NewNodeBefore<Del>(this);
+                MoveTo(del);
+                Parent = del;
+                del.Author = author;
+                del.Date = DateTime.Now;
+            }
+        }
+
         public string RsidR {
             get {
                 try {
@@ -1391,6 +1420,18 @@ namespace TDV.Docx {
                 newRnode.Text = newText;
                 CorrectDel(author);
             }
+        }
+
+        public void SetComment(string commmentText, string author = "TDV") {
+            Node parent = Parent;
+            if(parent is Ins || parent is Del) {
+                parent = parent.Parent;
+            }
+
+            CommentRangeStart commentRangeStart = Parent.NewNodeBefore<CommentRangeStart>(this);
+            CommentRangeEnd commentRangeEnd = Parent.NewNodeAfter<CommentRangeEnd>(this);
+            commentRangeEnd.Id = commentRangeStart.Id;
+            GetDocxDocument().Comments.NewComment(commentRangeStart.Id, author).Text = commmentText;
         }
 
         public override string ToString() {
@@ -1575,10 +1616,10 @@ namespace TDV.Docx {
         /// </summary>
         /// <param name="by"></param>
         /// <returns>Список выделенных R нод</returns>
-        public List<List<R>> SplitRnodesByRegex(string regex) {
+        public List<List<R>> SplitRnodesByRegex(string regex, RegexOptions options = RegexOptions.None) {
             List<int> indexStartList = new List<int>();
             List<int> indexEndList = new List<int>();
-            foreach (Match m in Regex.Matches(Text, regex)) {
+            foreach (Match m in Regex.Matches(Text, regex, options)) {
                 indexStartList.Add(m.Index);
                 indexEndList.Add(m.Index + m.Length);
             }
@@ -1678,8 +1719,8 @@ namespace TDV.Docx {
         /// </summary>
         /// <param name="regex"></param>
         /// <param name="New"></param>
-        public void ReplaceTextByRegEx(string regex, string New) {
-            List<List<R>> splitResult = SplitRnodesByRegex(regex);
+        public void ReplaceTextByRegEx(string regex, string New, RegexOptions options = RegexOptions.None) {
+            List<List<R>> splitResult = SplitRnodesByRegex(regex, options);
             foreach (List<R> rList in splitResult) {
                 rList.First().Text = New;
                 if (rList.Count > 1) {
@@ -1690,8 +1731,8 @@ namespace TDV.Docx {
             }
         }
 
-        public void ReplaceTextByRegExEditMode(string regex, string New, string author = "TDV") {
-            List<List<R>> splitResult = SplitRnodesByRegex(regex);
+        public void ReplaceTextByRegExEditMode(string regex, string New,RegexOptions options = RegexOptions.None, string author = "TDV") {
+            List<List<R>> splitResult = SplitRnodesByRegex(regex, options);
             foreach (List<R> rList in splitResult) {
                 if (rList.Count == 1)
                     rList.First().CorrectSetText(New, author);
@@ -2100,7 +2141,7 @@ namespace TDV.Docx {
         public int DrawingCount() {
             int result = 0;
             foreach (R r in RNodes) {
-                result = r.ChildNodes.Where(x => x is Drawing || x is Pict).Count();
+                result += r.ChildNodes.Where(x => x is Drawing || x is Pict).Count();
             }
 
             return result;
