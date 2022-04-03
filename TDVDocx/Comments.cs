@@ -217,4 +217,29 @@ namespace TDV.Docx {
             }
         }
     }
+
+    public static class RNodesExtensions {
+        /// <summary>
+        /// Уставнавливает комментарий для последовательно идущих нод
+        /// ноды должны быть из одного параграфа и располагаться друг за другом
+        /// </summary>
+        /// <param name="rList"></param>
+        public static void SetComment(this List<R> rList, string commmentText, string author = "TDV") {
+            if (rList == null || rList.Count() < 1) {
+                throw new ArgumentNullException("rList == null || rList.Count() < 1");
+            }
+
+            Node parent = rList.First().Parent;
+            DocxDocument docxDocument = rList.First().GetDocxDocument();
+
+            if (parent is Ins || parent is Del) {
+                parent = parent.Parent;
+            }
+
+            CommentRangeStart commentRangeStart = parent.NewNodeBefore<CommentRangeStart>(rList.First());
+            CommentRangeEnd commentRangeEnd = parent.NewNodeAfter<CommentRangeEnd>(rList.Last());
+            commentRangeEnd.Id = commentRangeStart.Id;
+            docxDocument.Comments.NewComment(commentRangeStart.Id, author).Text = commmentText;
+        }
+    }
 }

@@ -1428,8 +1428,8 @@ namespace TDV.Docx {
                 parent = parent.Parent;
             }
 
-            CommentRangeStart commentRangeStart = Parent.NewNodeBefore<CommentRangeStart>(this);
-            CommentRangeEnd commentRangeEnd = Parent.NewNodeAfter<CommentRangeEnd>(this);
+            CommentRangeStart commentRangeStart = parent.NewNodeBefore<CommentRangeStart>(this);
+            CommentRangeEnd commentRangeEnd = parent.NewNodeAfter<CommentRangeEnd>(this);
             commentRangeEnd.Id = commentRangeStart.Id;
             GetDocxDocument().Comments.NewComment(commentRangeStart.Id, author).Text = commmentText;
         }
@@ -1602,7 +1602,7 @@ namespace TDV.Docx {
         /// </summary>
         /// <param name="by"></param>
         /// <returns>Список выделенных R нод</returns>
-        List<List<R>> SplitRnodesBy(string by) {
+        public List<List<R>> SplitRnodesBy(string by) {
             List<int> indexStartList = Text.AllIndexesOf(by);
             if (indexStartList.Count == 0)
                 return new List<List<R>>();
@@ -1668,9 +1668,8 @@ namespace TDV.Docx {
                             processed++;
                             continue;
                         }
-                        else if (indexStart.Between(nodeIndexStart, nodeIndexEnd)
-                      ) //если начало вхождения в этой же ноде разделить ее еще раз и записть в результат
-                      {
+                        else if (indexStart.Between(nodeIndexStart, nodeIndexEnd)) //если начало вхождения в этой же ноде разделить ее еще раз и записть в результат
+                        {
                             splitedR = currR.SplitByTextIndex(currR.Text.Length - (indexEnd - indexStart));
 
                             result.Add(new List<R>() { splitedR.Second });
