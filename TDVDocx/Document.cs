@@ -1444,16 +1444,38 @@ namespace TDV.Docx {
       return FindChildsRecurcieve<Drawing>().Count();
     }
 
+    public FLD_CHAR_TYPE? FldCharType {
+      get {
+        foreach (R r in GetPrevNodesList().Where(x => x is R).ToList()) {
+          var fldChar = r.FindChild<FldChar>();
+          if (fldChar != null) {
+            if (fldChar.FldCharType == FLD_CHAR_TYPE.END) {
+              return null;
+            }
+
+            return fldChar.FldCharType;
+          }
+        }
+
+        return null;
+      }
+    }
+
     public new string Text {
       get {
         StringBuilder sb = new StringBuilder();
         foreach (Node n in ChildNodes) {
-          if (n is T)
+          if (n is T) {
             sb.Append(((T)n).Text);
-          else if (n is Br)
+          }
+          else if (n is Br) {
             sb.Append('\n');
-          else if (n is InstrText)
-            sb.Append(n.Text);
+          }
+          else if (n is InstrText) {
+            if (FldCharType == null || FldCharType == FLD_CHAR_TYPE.END) { 
+              sb.Append(n.Text);
+            }
+          }
         }
         return sb.ToString();
       }
@@ -1643,8 +1665,6 @@ namespace TDV.Docx {
         return res;
       }
 
-
-
       for (int rIndex = RNodesSource.Count - 1; rIndex >= 0; rIndex--) {
         R currR = RNodesSource[rIndex];
         int nodeIndexStart = BeforeLength(rIndex);
@@ -1686,9 +1706,13 @@ namespace TDV.Docx {
                 nodeIndexEnd = nodeIndexStart + currR.Text.Length;
 
                 if (indexStart.Between(nodeIndexStart, nodeIndexEnd) && !(indexEnd == nodeIndexEnd && indexStart == nodeIndexStart)) {
-
-                  splitedR = currR.SplitByTextIndex(indexStart - nodeIndexStart);
-                  subResult.Add(splitedR.Second);
+                  if (currR.Text.Length <= 1) {
+                    subResult.Add(currR);
+                  }
+                  else {
+                    splitedR = currR.SplitByTextIndex(indexStart - nodeIndexStart);
+                    subResult.Add(splitedR.Second);
+                  }
                   processed++;
                   break;
                 }
@@ -1782,14 +1806,17 @@ namespace TDV.Docx {
     /// </summary>
     public void ConcatRNodes() {
       R CurrNode = null;
+      
       foreach (Node node in ChildNodes) {
-        Type currType = node.GetType();
-        if (currType == typeof(R)) {
+        if (node is R) {
           R NextNode = (R)node;
+          var fldChar = NextNode.FindChild<FldChar>();
+
           if (CurrNode == null) {
             CurrNode = NextNode;
-            if (CurrNode.FindChild<T>() != null)
+            if (CurrNode.FindChild<T>() != null) { 
               CurrNode.t.XmlSpace = XML_SPACE.PRESERVE;
+            }
           }
           else {
             if (CurrNode.NextNode != NextNode || CurrNode.FindChild<InstrText>() != null) {
@@ -1797,22 +1824,27 @@ namespace TDV.Docx {
               continue;
             }
 
-            if (NextNode.FindChilds<Br>().Count == 0 && CurrNode.FindChilds<Br>().Count == 0 && ((CurrNode.FindChild<RProp>() == null && NextNode.FindChild<RProp>() == null) ||
-                CurrNode.GetRStyle() == NextNode.GetRStyle())) {
+            if (fldChar != null) {
+              continue;
+            }
+
+            if (NextNode.FindChilds<Br>().Count == 0 
+              && CurrNode.FindChilds<Br>().Count == 0 
+              && ((CurrNode.FindChild<RProp>() == null && NextNode.FindChild<RProp>() == null) || CurrNode.GetRStyle() == NextNode.GetRStyle())) 
+            {
               CurrNode.Text += NextNode.Text;
               NextNode.Delete();
-            }
-            else {
+            } else {
               CurrNode = NextNode;
               if (CurrNode.FindChild<T>() != null)
                 CurrNode.t.XmlSpace = XML_SPACE.PRESERVE;
             }
           }
         }
-        else if (currType == typeof(NoProof) || currType == typeof(ProofErr)) {
+        else if (node is NoProof || node is ProofErr) {
           node.Delete();
         }
-        else if (currType == typeof(BookmarkStart)) {
+        else if (node is BookmarkStart) {
           BookmarkStart start = ((BookmarkStart)node);
           if (start.Name == "_GoBack")
             start.Delete();

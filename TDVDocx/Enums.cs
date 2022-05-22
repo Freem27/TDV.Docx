@@ -1,9 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Data;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace TDV.Docx {
   public enum LINE_TYPE {
@@ -1142,6 +1137,16 @@ wave - a wavy line
         }
       }
       throw new NotImplementedException();
+    }
+
+    public static bool In<T>(this T source, params T[] values) where T: Enum {
+      foreach(var value in values) {
+        if (source.Equals(value)) {
+          return true;
+        }
+      }
+
+      return false;
     }
   }
 

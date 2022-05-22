@@ -2,8 +2,6 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Xml;
 
 namespace TDV.Docx {
@@ -43,6 +41,23 @@ namespace TDV.Docx {
       get {
         return FindChilds<Comment>();
       }
+    }
+
+    private int lastId = -1;
+
+    private int GetLastId() {
+      int result = 0;
+      //XmlNodeList insDelList = XmlEl.SelectNodes("//*[@w:id]", Nsmgr);
+      XmlNodeList nodes = XmlEl.SelectNodes(".//@w:id", Nsmgr);
+      if (nodes.Count > 0)
+        result = nodes.Cast<XmlAttribute>().Max(x => Int32.Parse(x.Value));
+      return result;
+    }
+
+    public int GetNextId() {
+      if (lastId < 0)
+        lastId = GetLastId();
+      return ++lastId;
     }
 
     public Comment GetCommentById(int id, bool createIfNotExist = false) {
@@ -183,7 +198,7 @@ namespace TDV.Docx {
 
     public override void InitXmlElement() {
       base.InitXmlElement();
-      Id = GetDocxDocument().Document.GetNextId();
+      Id = GetDocxDocument().Comments.GetNextId();
     }
   }
 
